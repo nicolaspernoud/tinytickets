@@ -1,0 +1,11 @@
+{
+  "configurations": [
+    {
+      "name": "Tiny Tickets Front End (Flutter)",
+      "program": "frontend/lib/main.dart",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--web-port", "8001"]
+    }
+  ]
+}

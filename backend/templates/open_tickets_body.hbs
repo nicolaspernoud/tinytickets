@@ -1,0 +1,15 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Opened tickets</title>
+  </head>
+  <body>
+    <h1>Currently opened tickets</h1>
+    {{#each this}}
+      <h2>{{{formattime this}}} - {{this.title}}</h2>
+      <p> {{this.description}}</p>
+    {{/each}}
+  </body>
+</html>
