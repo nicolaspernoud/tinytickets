@@ -1,11 +1,14 @@
 import 'dart:convert';
-
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/http.dart';
 import 'package:tinytickets/models/comment.dart';
 import 'package:tinytickets/models/ticket.dart';
 
 import '../globals.dart';
 import 'asset.dart';
+import 'mock_api.dart';
 
 dynamic fromJSONbyType(Type t, Map<String, dynamic> map) {
   switch (t) {
@@ -50,38 +53,24 @@ abstract class Crud<T extends Serialisable> {
   Delete(int id) {}
 }
 
-class MockCrud<T extends Serialisable> extends Crud<T> {
-  List<T> _db = [];
-
-  Create(T val) {
-    _db.add(val);
-  }
-
-  Read(int id) {
-    return _db[id];
-  }
-
-  ReadAll() {
-    return _db;
-  }
-
-  Update(T val) {
-    _db[val.id] = val;
-  }
-
-  Delete(int id) {
-    _db.removeAt(id);
-  }
-}
-
 class APICrud<T extends Serialisable> extends Crud<T> {
+  late final Client client;
+
   final String route = routeByType(T);
 
   String get base => (App().prefs.getString("hostname") ?? "") + "/api";
   String get token => App().prefs.getString("token") ?? "";
 
+  APICrud() {
+    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+      client = MockAPI().client;
+    } else {
+      client = http.Client();
+    }
+  }
+
   Future<T> Create(T val) async {
-    final response = await http.post(
+    final response = await client.post(
       Uri.parse('$base/$route'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
@@ -97,7 +86,7 @@ class APICrud<T extends Serialisable> extends Crud<T> {
   }
 
   Future<T> Read(int id) async {
-    final response = await http.get(
+    final response = await client.get(
       Uri.parse('$base/$route/${id.toString()}'),
       headers: <String, String>{
         'X-TOKEN': token,
@@ -112,7 +101,7 @@ class APICrud<T extends Serialisable> extends Crud<T> {
   }
 
   Future<List<T>> ReadAll() async {
-    final response = await http.get(
+    final response = await client.get(
       Uri.parse('$base/$route/all'),
       headers: <String, String>{'X-TOKEN': token},
     );
@@ -126,7 +115,7 @@ class APICrud<T extends Serialisable> extends Crud<T> {
   }
 
   Update(T val) async {
-    final response = await http.patch(
+    final response = await client.patch(
       Uri.parse('$base/$route/${val.id}'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
@@ -140,7 +129,7 @@ class APICrud<T extends Serialisable> extends Crud<T> {
   }
 
   Delete(int id) async {
-    final response = await http.delete(
+    final response = await client.delete(
       Uri.parse('$base/$route/${id}'),
       headers: <String, String>{'X-TOKEN': token},
     );

@@ -233,7 +233,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         description: "MyAssetDescription".to_string(),
     };
     let response = client
-        .post("/assets")
+        .post("/api/assets")
         .header(admin_header.clone())
         .json(&asset)
         .dispatch()
@@ -243,7 +243,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
 
     // Get a valid asset id
     let asset_id = client
-        .get("/assets")
+        .get("/api/assets")
         .header(user_header.clone())
         .dispatch()
         .into_json::<Vec<i32>>()
@@ -459,7 +459,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         description: "MyAssetDescription".to_string(),
     };
     let response = client
-        .post("/assets")
+        .post("/api/assets")
         .header(admin_header.clone())
         .json(&asset)
         .dispatch()
@@ -469,7 +469,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
 
     // Get a valid asset id
     let asset_id = client
-        .get("/assets")
+        .get("/api/assets")
         .header(user_header.clone())
         .dispatch()
         .into_json::<Vec<i32>>()
@@ -484,7 +484,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         is_closed: false,
     };
     let response = client
-        .post("/tickets")
+        .post("/api/tickets")
         .header(user_header.clone())
         .json(&ticket)
         .dispatch()
@@ -494,7 +494,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
 
     // Get a valid ticket id
     let ticket_id = client
-        .get("/tickets")
+        .get("/api/tickets")
         .header(desk_header.clone())
         .dispatch()
         .into_json::<Vec<i32>>()
@@ -644,7 +644,7 @@ fn test_models() {
         println!("error removing db: {}", e);
     }
 
-    test_assets("/assets", &client);
-    test_tickets("/tickets", &client);
-    test_comments("/comments", &client);
+    test_assets("/api/assets", &client);
+    test_tickets("/api/tickets", &client);
+    test_comments("/api/comments", &client);
 }

@@ -1,13 +1,15 @@
 FROM rust as builder
 WORKDIR /usr/src/tinytickets
 COPY ./backend .
-RUN cargo install --path .
+RUN cargo test && \
+    cargo install --path .
 
 FROM cirrusci/flutter:stable as frontend-builder
 WORKDIR /app
 COPY ./frontend .
 RUN flutter pub get
-RUN flutter build web
+RUN flutter test && \
+    flutter build web
 
 FROM debian:bullseye-slim
 WORKDIR /app

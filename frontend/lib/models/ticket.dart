@@ -1,8 +1,9 @@
+import 'package:equatable/equatable.dart';
 import 'package:tinytickets/models/comment.dart';
 
 import 'crud.dart';
 
-class Ticket extends Serialisable {
+class Ticket extends Serialisable with EquatableMixin {
   int id;
   int asset_id;
   DateTime time;
@@ -47,4 +48,19 @@ class Ticket extends Serialisable {
                 .map((e) => Comment.fromJson(e))
                 .toList());
   }
+
+  @override
+  List<Object> get props {
+    return [
+      id,
+      asset_id,
+      time,
+      title,
+      description,
+      is_closed,
+    ];
+  }
+
+  @override
+  bool get stringify => true;
 }

@@ -16,13 +16,13 @@ pub fn send_mail(subject: String, body: String) {
         .header(header::ContentType::TEXT_HTML)
         .subject(subject)
         .body(body)
-        .unwrap();
+        .expect("Could not send email : could not create the message.");
 
     let creds = Credentials::new(user, password);
 
     // Open a remote connection to gmail
     let mailer = SmtpTransport::relay(&server)
-        .unwrap()
+        .expect("Could not send email : could not create the mailer.")
         .credentials(creds)
         .build();
 

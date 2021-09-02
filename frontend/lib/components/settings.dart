@@ -43,6 +43,7 @@ class _SettingsState extends State<Settings> {
                   onChanged: (text) {
                     App().prefs.setString("hostname", text);
                   },
+                  key: Key("hostnameField"),
                 ),
               TextFormField(
                 initialValue: App().prefs.getString("token"),
@@ -51,6 +52,7 @@ class _SettingsState extends State<Settings> {
                 onChanged: (text) {
                   App().prefs.setString("token", text);
                 },
+                key: Key("tokenField"),
               ),
               if (App().role == Role.admin) ...[
                 Text(MyLocalizations.of(context)!.tr("assets")),

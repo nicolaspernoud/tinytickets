@@ -1,6 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 import 'crud.dart';
 
-class Comment extends Serialisable {
+class Comment extends Serialisable with EquatableMixin {
   int id;
   int ticket_id;
   DateTime time;
@@ -30,4 +32,12 @@ class Comment extends Serialisable {
             : DateTime.now(),
         content: json['content']);
   }
+
+  @override
+  List<Object> get props {
+    return [id, ticket_id, time, content];
+  }
+
+  @override
+  bool get stringify => true;
 }

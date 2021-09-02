@@ -1,6 +1,7 @@
 import 'package:tinytickets/models/crud.dart';
+import 'package:equatable/equatable.dart';
 
-class Asset extends Serialisable {
+class Asset extends Serialisable with EquatableMixin {
   int id;
   String title;
   String description;
@@ -26,4 +27,12 @@ class Asset extends Serialisable {
       description: data['description'],
     );
   }
+
+  @override
+  List<Object> get props {
+    return [id, title, description];
+  }
+
+  @override
+  bool get stringify => true;
 }
