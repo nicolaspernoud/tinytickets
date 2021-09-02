@@ -54,12 +54,12 @@ class _TicketsState extends State<Tickets> {
         body: (App().role != Role.unknown)
             ? Center(
                 child: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(16.0),
                 child: FutureBuilder<List<Ticket>>(
                   future: tickets,
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
-                      return Column(
+                      return ListView(
                           children: snapshot.data!
                               .where((t) => !t.is_closed || _showClosed)
                               .map((t) => Card(
@@ -72,7 +72,7 @@ class _TicketsState extends State<Tickets> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: <Widget>[
                                         ListTile(
-                                            leading: Icon(Icons.album),
+                                            leading: Icon(Icons.assignment),
                                             title: Text(formatTime(t.time) +
                                                 " - " +
                                                 t.title),

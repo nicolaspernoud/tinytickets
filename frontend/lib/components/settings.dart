@@ -32,7 +32,7 @@ class _SettingsState extends State<Settings> {
         ),
         body: Center(
             child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               if (!kIsWeb || kDebugMode)
@@ -73,7 +73,7 @@ class _SettingsState extends State<Settings> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: <Widget>[
                                         ListTile(
-                                          leading: Icon(Icons.album),
+                                          leading: Icon(Icons.apartment),
                                           title: Text(a.title),
                                           subtitle: Text(a.description),
                                         ),

@@ -104,169 +104,175 @@ class _NewEditTicketState extends State<NewEditTicket> {
               : null,
         ),
         body: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    decoration: new InputDecoration(
-                        labelText: MyLocalizations.of(context)!.tr("title")),
-                    // The validator receives the text that the user has entered.
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return MyLocalizations.of(context)!
-                            .tr("please_enter_some_text");
-                      }
-                      return null;
-                    },
-                    initialValue: widget.ticket.title,
-                    onChanged: (value) {
-                      widget.ticket.title = value;
-                    },
-                  ),
-                  TextFormField(
-                    decoration: new InputDecoration(
-                        labelText:
-                            MyLocalizations.of(context)!.tr("description")),
-                    // The validator receives the text that the user has entered.
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return MyLocalizations.of(context)!
-                            .tr("please_enter_some_text");
-                      }
-                      return null;
-                    },
-                    initialValue: widget.ticket.description,
-                    onChanged: (value) {
-                      widget.ticket.description = value;
-                    },
-                  ),
-                  SizedBox(height: 20),
-                  OutlinedButton(
-                    onPressed: _imgFromGallery,
-                    child: Text(MyLocalizations.of(context)!.tr("pick_photo")),
-                  ),
-                  SizedBox(height: 20),
-                  if (imageBytes != null)
-                    Image.memory(
-                      imageBytes!,
-                      fit: BoxFit.fill,
-                      height: 300,
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      decoration: new InputDecoration(
+                          labelText: MyLocalizations.of(context)!.tr("title")),
+                      // The validator receives the text that the user has entered.
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return MyLocalizations.of(context)!
+                              .tr("please_enter_some_text");
+                        }
+                        return null;
+                      },
+                      initialValue: widget.ticket.title,
+                      onChanged: (value) {
+                        widget.ticket.title = value;
+                      },
                     ),
-                  AssetsDropDown(
-                    crud: widget.assetsCrud,
-                    callback: (val) => widget.ticket.asset_id = val,
-                    initialIndex: widget.ticket.asset_id,
-                  ),
-                  Row(
-                    children: [
-                      Text(MyLocalizations.of(context)!.tr("closed")),
-                      Switch(
-                          value: widget.ticket.is_closed,
-                          onChanged: (v) => setState(() {
-                                widget.ticket.is_closed = v;
-                              })),
-                    ],
-                  ),
-                  if (isExisting)
-                    Column(
+                    TextFormField(
+                      decoration: new InputDecoration(
+                          labelText:
+                              MyLocalizations.of(context)!.tr("description")),
+                      // The validator receives the text that the user has entered.
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return MyLocalizations.of(context)!
+                              .tr("please_enter_some_text");
+                        }
+                        return null;
+                      },
+                      initialValue: widget.ticket.description,
+                      onChanged: (value) {
+                        widget.ticket.description = value;
+                      },
+                    ),
+                    SizedBox(height: 20),
+                    OutlinedButton(
+                      onPressed: _imgFromGallery,
+                      child:
+                          Text(MyLocalizations.of(context)!.tr("pick_photo")),
+                    ),
+                    SizedBox(height: 20),
+                    if (imageBytes != null)
+                      Image.memory(
+                        imageBytes!,
+                        fit: BoxFit.fill,
+                        height: 300,
+                      ),
+                    AssetsDropDown(
+                      crud: widget.assetsCrud,
+                      callback: (val) => widget.ticket.asset_id = val,
+                      initialIndex: widget.ticket.asset_id,
+                    ),
+                    Row(
                       children: [
-                        Text(MyLocalizations.of(context)!.tr("comments")),
-                        FutureBuilder<Ticket>(
-                          future: ticketWithComments,
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData) {
-                              return Column(
-                                children: [
-                                  ...snapshot.data!.comments
-                                      .map((c) => Card(
-                                              child: InkWell(
-                                            splashColor:
-                                                Colors.blue.withAlpha(30),
-                                            onTap: () {
-                                              _edit(c);
-                                            },
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: <Widget>[
-                                                ListTile(
-                                                  leading: Icon(Icons.album),
-                                                  title:
-                                                      Text(formatTime(c.time)),
-                                                  subtitle: Text(c.content),
-                                                  trailing:
-                                                      App().role == Role.admin
-                                                          ? IconButton(
-                                                              icon: Icon(Icons
-                                                                  .delete_forever),
-                                                              onPressed: () {
-                                                                _delete(c);
-                                                              },
-                                                            )
-                                                          : null,
-                                                ),
-                                              ],
-                                            ),
-                                          )))
-                                      .toList(),
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: IconButton(
-                                      icon: const Icon(Icons.add),
-                                      color: Colors.blue,
-                                      onPressed: () {
-                                        _edit(Comment(
-                                            id: 0,
-                                            ticket_id: widget.ticket.id,
-                                            content: "",
-                                            time: DateTime.now()));
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              );
-                            } else if (snapshot.hasError) {
-                              return Text('${snapshot.error}');
-                            }
-                            // By default, show a loading spinner.
-                            return const CircularProgressIndicator();
-                          },
-                        ),
+                        Text(MyLocalizations.of(context)!.tr("closed")),
+                        Switch(
+                            value: widget.ticket.is_closed,
+                            onChanged: (v) => setState(() {
+                                  widget.ticket.is_closed = v;
+                                })),
                       ],
                     ),
-                  if (App().role == Role.admin || App().role == Role.user)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          // Validate returns true if the form is valid, or false otherwise.
-                          if (_formKey.currentState!.validate()) {
-                            var msg = MyLocalizations.of(context)!
-                                .tr("ticket_created");
-                            try {
-                              if (isExisting) {
-                                await widget.crud.Update(widget.ticket);
-                                if (imageBytes != null)
-                                  await _imgToServer(widget.ticket.id);
-                              } else {
-                                var t = await widget.crud.Create(widget.ticket);
-                                await _imgToServer(t.id);
+                    if (isExisting)
+                      Column(
+                        children: [
+                          Text(MyLocalizations.of(context)!.tr("comments")),
+                          FutureBuilder<Ticket>(
+                            future: ticketWithComments,
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return Column(
+                                  children: [
+                                    ...snapshot.data!.comments
+                                        .map((c) => Card(
+                                                child: InkWell(
+                                              splashColor:
+                                                  Colors.blue.withAlpha(30),
+                                              onTap: () {
+                                                _edit(c);
+                                              },
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: <Widget>[
+                                                  ListTile(
+                                                    leading:
+                                                        Icon(Icons.comment),
+                                                    title: Text(
+                                                        formatTime(c.time)),
+                                                    subtitle: Text(c.content),
+                                                    trailing:
+                                                        App().role == Role.admin
+                                                            ? IconButton(
+                                                                icon: Icon(Icons
+                                                                    .delete_forever),
+                                                                onPressed: () {
+                                                                  _delete(c);
+                                                                },
+                                                              )
+                                                            : null,
+                                                  ),
+                                                ],
+                                              ),
+                                            )))
+                                        .toList(),
+                                    Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.add_comment),
+                                        color: Colors.blue,
+                                        onPressed: () {
+                                          _edit(Comment(
+                                              id: 0,
+                                              ticket_id: widget.ticket.id,
+                                              content: "",
+                                              time: DateTime.now()));
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              } else if (snapshot.hasError) {
+                                return Text('${snapshot.error}');
                               }
-                            } catch (e) {
-                              msg = e.toString();
-                            }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(msg)),
-                            );
-                            Navigator.pop(context);
-                          }
-                        },
-                        child: Text(MyLocalizations.of(context)!.tr("submit")),
+                              // By default, show a loading spinner.
+                              return const CircularProgressIndicator();
+                            },
+                          ),
+                        ],
                       ),
-                    ),
-                ],
+                    if (App().role == Role.admin || App().role == Role.user)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            // Validate returns true if the form is valid, or false otherwise.
+                            if (_formKey.currentState!.validate()) {
+                              var msg = MyLocalizations.of(context)!
+                                  .tr("ticket_created");
+                              try {
+                                if (isExisting) {
+                                  await widget.crud.Update(widget.ticket);
+                                  if (imageBytes != null)
+                                    await _imgToServer(widget.ticket.id);
+                                } else {
+                                  var t =
+                                      await widget.crud.Create(widget.ticket);
+                                  await _imgToServer(t.id);
+                                }
+                              } catch (e) {
+                                msg = e.toString();
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(msg)),
+                              );
+                              Navigator.pop(context);
+                            }
+                          },
+                          child:
+                              Text(MyLocalizations.of(context)!.tr("submit")),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             )));
   }

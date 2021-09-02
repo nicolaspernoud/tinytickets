@@ -40,7 +40,7 @@ class _NewEditAssetState extends State<NewEditAsset> {
               : null,
         ),
         body: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Form(
               key: _formKey,
               child: Column(
