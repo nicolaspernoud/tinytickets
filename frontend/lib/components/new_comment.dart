@@ -78,7 +78,7 @@ class _NewEditCommentState extends State<NewEditComment> {
                               } else {
                                 await widget.crud.Create(widget.comment);
                               }
-                            } catch (e) {
+                            } on TypeError {} catch (e) {
                               msg = e.toString();
                             }
                             ScaffoldMessenger.of(context).showSnackBar(

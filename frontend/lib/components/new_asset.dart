@@ -93,7 +93,8 @@ class _NewEditAssetState extends State<NewEditAsset> {
                             } else {
                               await widget.crud.Create(widget.asset);
                             }
-                          } catch (e) {
+                            // Do nothing on TypeError as Create respond with a null id
+                          } on TypeError {} catch (e) {
                             msg = e.toString();
                           }
                           ScaffoldMessenger.of(context).showSnackBar(
