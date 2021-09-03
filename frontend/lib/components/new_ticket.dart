@@ -53,8 +53,8 @@ class _NewEditTicketState extends State<NewEditTicket> {
   }
 
   _imgFromGallery() async {
-    final temp = await ImagePicker()
-        .pickImage(source: ImageSource.camera, imageQuality: 80);
+    final temp = await ImagePicker().pickImage(
+        source: ImageSource.camera, imageQuality: 80, maxWidth: 1280);
     imageBytes = await temp!.readAsBytes();
     setState(() {});
   }
