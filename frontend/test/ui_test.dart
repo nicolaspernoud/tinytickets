@@ -6,7 +6,7 @@ import 'package:tinytickets/i18n.dart';
 import 'package:tinytickets/main.dart';
 
 Future<void> main() async {
-  testWidgets('Without token tests', (WidgetTester tester) async {
+  testWidgets('Basic app opening tests', (WidgetTester tester) async {
     // Initialize configuration
     SharedPreferences.setMockInitialValues({"hostname": "", "token": ""});
     await App().init();
@@ -25,13 +25,11 @@ Future<void> main() async {
     await tester.pump();
     // Check that we do not display the ticket list on startup if a user token is not set
     expect(find.text("2021-08-12 - MyTicket"), findsNothing);
-    await tester.tap(find.byIcon(Icons.settings));
-    await tester.pumpAndSettle();
     // Enter a user token
     await tester.enterText(find.byKey(Key("tokenField")), '\$USER\$user');
-    await tester.pageBack();
+    await tester.tap(find.text("OK"));
     await tester.pumpAndSettle();
-    // Check that we display the ticket list on startup if a user token is set
+    // Check that we display the ticket list if a user token is set
     expect(find.text("2021-08-12 - MyTicket"), findsOneWidget);
 
     // To print the widget tree :

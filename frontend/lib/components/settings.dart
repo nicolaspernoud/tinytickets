@@ -35,25 +35,7 @@ class _SettingsState extends State<Settings> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              if (!kIsWeb || kDebugMode)
-                TextFormField(
-                  initialValue: App().prefs.getString("hostname"),
-                  decoration: new InputDecoration(
-                      labelText: MyLocalizations.of(context)!.tr("hostname")),
-                  onChanged: (text) {
-                    App().prefs.setString("hostname", text);
-                  },
-                  key: Key("hostnameField"),
-                ),
-              TextFormField(
-                initialValue: App().prefs.getString("token"),
-                decoration: new InputDecoration(
-                    labelText: MyLocalizations.of(context)!.tr("token")),
-                onChanged: (text) {
-                  App().prefs.setString("token", text);
-                },
-                key: Key("tokenField"),
-              ),
+              settingsField(),
               if (App().role == Role.admin) ...[
                 Text(MyLocalizations.of(context)!.tr("assets")),
                 FutureBuilder<List<Asset>>(
@@ -114,5 +96,38 @@ class _SettingsState extends State<Settings> {
     setState(() {
       assets = widget.crud.ReadAll();
     });
+  }
+}
+
+class settingsField extends StatelessWidget {
+  const settingsField({
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (!kIsWeb || kDebugMode)
+          TextFormField(
+            initialValue: App().prefs.getString("hostname"),
+            decoration: new InputDecoration(
+                labelText: MyLocalizations.of(context)!.tr("hostname")),
+            onChanged: (text) {
+              App().prefs.setString("hostname", text);
+            },
+            key: Key("hostnameField"),
+          ),
+        TextFormField(
+          initialValue: App().prefs.getString("token"),
+          decoration: new InputDecoration(
+              labelText: MyLocalizations.of(context)!.tr("token")),
+          onChanged: (text) {
+            App().prefs.setString("token", text);
+          },
+          key: Key("tokenField"),
+        ),
+      ],
+    );
   }
 }

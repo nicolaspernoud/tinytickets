@@ -42,6 +42,7 @@ class MyLocalizations {
       'ticket_deleted': 'Ticket deleted successfully.',
       'title': 'Title',
       'token': 'Token',
+      'try_new_token': 'Error accessing data, please check your access token.'
     },
     'fr': {
       'asset_created': 'Actif créé ou modifié avec succès.',
@@ -72,6 +73,8 @@ class MyLocalizations {
       'ticket_deleted': 'Ticket supprimé avec succès.',
       'title': 'Titre',
       'token': 'Jeton de sécurité',
+      'try_new_token':
+          'Erreur d\'accès aux données, veuillez vérifier votre jeton de sécurité.'
     },
   };
 

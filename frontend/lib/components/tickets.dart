@@ -28,7 +28,42 @@ class _TicketsState extends State<Tickets> {
   @override
   void initState() {
     super.initState();
-    if (App().role != Role.unknown) tickets = widget.crud.ReadAll();
+    if (App().role != Role.unknown) {
+      tickets = widget.crud.ReadAll();
+    } else {
+      WidgetsBinding.instance?.addPostFrameCallback(openSettings);
+    }
+    ;
+  }
+
+  void openSettings(_) async {
+    await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: Text(MyLocalizations.of(context)!.tr("settings")),
+        content: Container(
+          child: const settingsField(),
+          height: 150,
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'OK'),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    setState(() {
+      hasRoleOrOpenSettings(_);
+    });
+  }
+
+  void hasRoleOrOpenSettings(_) {
+    if (App().role != Role.unknown) {
+      tickets = widget.crud.ReadAll();
+    } else {
+      openSettings(_);
+    }
   }
 
   @override
@@ -45,8 +80,7 @@ class _TicketsState extends State<Tickets> {
                     return Settings(crud: APICrud<Asset>());
                   }));
                   setState(() {
-                    if (App().role != Role.unknown)
-                      tickets = widget.crud.ReadAll();
+                    hasRoleOrOpenSettings(null);
                   });
                 })
           ],
@@ -82,7 +116,8 @@ class _TicketsState extends State<Tickets> {
                                   )))
                               .toList());
                     } else if (snapshot.hasError) {
-                      return Text('${snapshot.error}');
+                      return Text(
+                          MyLocalizations.of(context)!.tr("try_new_token"));
                     }
                     // By default, show a loading spinner.
                     return const CircularProgressIndicator();
