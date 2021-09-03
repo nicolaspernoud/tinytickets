@@ -19,8 +19,8 @@ use rocket::response::status::NotFound;
 use rocket::response::Debug;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::tokio::fs::File;
+use rocket::tokio::task::spawn_blocking;
 use std::fs;
-use std::thread;
 
 use rocket_sync_db_pools::diesel;
 
@@ -132,7 +132,7 @@ async fn create(
     {
         Ok(t) => {
             let t2 = t.clone();
-            thread::spawn(move || match new_ticket_template(&t2) {
+            spawn_blocking(move || match new_ticket_template(&t2) {
                 Ok(r) => send_mail(r.0, r.1),
                 Err(e) => println!("Handlebars error : {}", e),
             });
