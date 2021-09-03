@@ -1,4 +1,4 @@
-use crate::config::{AdminToken, DeskToken, UserToken};
+use crate::config::{AdminToken, UserToken};
 use crate::mail::send_mail;
 use crate::models::asset::Asset;
 use crate::models::comment::Comment;
@@ -45,6 +45,7 @@ pub struct Ticket {
     pub id: i32,
     pub asset_id: i32,
     pub title: String,
+    pub creator: String,
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
@@ -55,6 +56,7 @@ pub struct Ticket {
 pub struct InTicket {
     pub asset_id: i32,
     pub title: String,
+    pub creator: String,
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
@@ -64,6 +66,7 @@ impl PartialEq<InTicket> for Ticket {
     fn eq(&self, other: &InTicket) -> bool {
         self.title == other.title
             && self.asset_id == other.asset_id
+            && self.creator == other.creator
             && self.description == other.description
             && self.time == other.time
     }
@@ -87,7 +90,7 @@ fn options() -> &'static str {
 async fn create(
     db: Db,
     ticket: Json<InTicket>,
-    _token: DeskToken<'_>,
+    _token: UserToken<'_>,
 ) -> Result<Created<Json<Ticket>>, NotFound<String>> {
     let ticket_value = ticket.clone();
     let asset_id = ticket.asset_id;
@@ -146,7 +149,7 @@ async fn update(
     db: Db,
     ticket: Json<Ticket>,
     id: i32,
-    _token: UserToken<'_>,
+    _token: AdminToken<'_>,
 ) -> Result<Created<Json<Ticket>>> {
     let ticket_value = ticket.clone();
     db.run(move |conn| {
@@ -160,7 +163,7 @@ async fn update(
 }
 
 #[get("/")]
-async fn list(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<i32>>> {
+async fn list(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<i32>>> {
     let ids: Vec<i32> = db
         .run(|conn| tickets::table.select(tickets::id).load(conn))
         .await?;
@@ -169,7 +172,7 @@ async fn list(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<i32>>> {
 }
 
 #[get("/all")]
-async fn list_all(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<Ticket>>> {
+async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Ticket>>> {
     let all_tickets: Vec<Ticket> = db.run(|conn| tickets::table.load(conn)).await?;
     Ok(Json(all_tickets))
 }
@@ -193,7 +196,7 @@ async fn mail_open(db: Db, _token: AdminToken<'_>) -> Result<Json<Vec<Ticket>>> 
 }
 
 #[get("/<id>")]
-async fn read(db: Db, id: i32, _token: DeskToken<'_>) -> Result<Json<OutTicket>, NotFound<String>> {
+async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Result<Json<OutTicket>, NotFound<String>> {
     match db
         .run(move |conn| {
             let t: Result<Ticket, diesel::result::Error> =
@@ -263,7 +266,7 @@ async fn upload(
 }
 
 #[get("/photos/<id>")]
-async fn retrieve(id: i32, _token: DeskToken<'_>) -> Result<File, NotFound<String>> {
+async fn retrieve(id: i32, _token: UserToken<'_>) -> Result<File, NotFound<String>> {
     let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
     match File::open(&filename).await {
         Ok(f) => Ok(f),

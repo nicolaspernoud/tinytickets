@@ -48,6 +48,22 @@ class _NewEditCommentState extends State<NewEditComment> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextFormField(
+                    initialValue: widget.comment.creator,
+                    decoration: new InputDecoration(
+                        labelText: MyLocalizations.of(context)!.tr("creator")),
+                    // The validator receives the text that the user has entered.
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return MyLocalizations.of(context)!
+                            .tr("please_enter_some_text");
+                      }
+                      return null;
+                    },
+                    onChanged: (value) {
+                      widget.comment.creator = value;
+                    },
+                  ),
+                  TextFormField(
                     initialValue: widget.comment.content,
                     decoration: new InputDecoration(
                         labelText: MyLocalizations.of(context)!.tr("content")),

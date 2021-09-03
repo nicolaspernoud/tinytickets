@@ -11,6 +11,7 @@ table! {
         id -> Integer,
         ticket_id -> Integer,
         time -> Timestamp,
+        creator -> Text,
         content -> Text,
     }
 }
@@ -20,6 +21,7 @@ table! {
         id -> Integer,
         asset_id -> Integer,
         title -> Text,
+        creator -> Text,
         description -> Text,
         time -> Timestamp,
         is_closed -> Bool,

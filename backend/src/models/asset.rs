@@ -1,4 +1,5 @@
-use crate::config::{AdminToken, DeskToken};
+use crate::config::AdminToken;
+use crate::config::UserToken;
 use crate::models::db::Db;
 use crate::models::db::Result;
 use crate::models::schema::*;
@@ -83,7 +84,7 @@ async fn update(
 }
 
 #[get("/")]
-async fn list(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<i32>>> {
+async fn list(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<i32>>> {
     let ids: Vec<i32> = db
         .run(|conn| assets::table.select(assets::id).load(conn))
         .await?;
@@ -92,13 +93,13 @@ async fn list(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<i32>>> {
 }
 
 #[get("/all")]
-async fn list_all(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<Asset>>> {
+async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Asset>>> {
     let all_assets: Vec<Asset> = db.run(|conn| assets::table.load(conn)).await?;
     Ok(Json(all_assets))
 }
 
 #[get("/<id>")]
-async fn read(db: Db, id: i32, _token: DeskToken<'_>) -> Option<Json<Asset>> {
+async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Option<Json<Asset>> {
     db.run(move |conn| assets::table.filter(assets::id.eq(id)).first(conn))
         .await
         .map(Json)

@@ -1,4 +1,4 @@
-use crate::config::{AdminToken, DeskToken};
+use crate::config::{AdminToken, UserToken};
 use crate::models::db::Db;
 use crate::models::db::Result;
 use crate::models::schema::*;
@@ -31,6 +31,7 @@ pub struct Comment {
     pub id: i32,
     pub ticket_id: i32,
     pub time: chrono::NaiveDateTime,
+    pub creator: String,
     pub content: String,
 }
 
@@ -39,6 +40,7 @@ pub struct Comment {
 pub struct InComment {
     pub ticket_id: i32,
     pub time: chrono::NaiveDateTime,
+    pub creator: String,
     pub content: String,
 }
 
@@ -47,6 +49,7 @@ impl PartialEq<InComment> for Comment {
         self.ticket_id == other.ticket_id
             && self.content == other.content
             && self.time == other.time
+            && self.creator == other.creator
     }
 }
 
@@ -59,7 +62,7 @@ fn options() -> &'static str {
 async fn create(
     db: Db,
     comment: Json<InComment>,
-    _token: DeskToken<'_>,
+    _token: UserToken<'_>,
 ) -> Result<Created<Json<InComment>>, NotFound<String>> {
     let comment_value = comment.clone();
     let ticket_id = comment.ticket_id;
@@ -110,7 +113,7 @@ async fn update(
 }
 
 #[get("/")]
-async fn list(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<i32>>> {
+async fn list(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<i32>>> {
     let ids: Vec<i32> = db
         .run(|conn| comments::table.select(comments::id).load(conn))
         .await?;
@@ -119,13 +122,13 @@ async fn list(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<i32>>> {
 }
 
 #[get("/all")]
-async fn list_all(db: Db, _token: DeskToken<'_>) -> Result<Json<Vec<Comment>>> {
+async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Comment>>> {
     let all_comments: Vec<Comment> = db.run(|conn| comments::table.load(conn)).await?;
     Ok(Json(all_comments))
 }
 
 #[get("/<id>")]
-async fn read(db: Db, id: i32, _token: DeskToken<'_>) -> Option<Json<Comment>> {
+async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Option<Json<Comment>> {
     db.run(move |conn| comments::table.filter(comments::id.eq(id)).first(conn))
         .await
         .map(Json)

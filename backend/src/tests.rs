@@ -179,7 +179,6 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     const N: usize = 20;
     let admin_header = Header::new("X-TOKEN", "$ADMIN$development_admin_token");
     let user_header = Header::new("X-TOKEN", "$USER$development_user_token");
-    let desk_header = Header::new("X-TOKEN", "$DESK$development_desk_token");
 
     // Clear everything from the database.
     assert_eq!(
@@ -189,7 +188,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     assert_eq!(
         client
             .delete(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .status(),
         Status::Forbidden
@@ -205,7 +204,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     assert_eq!(
         client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>(),
         Some(vec![])
@@ -214,6 +213,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     // Add a ticket to a non existing asset (must fail)
     let ticket = InTicket {
         title: "test".to_string(),
+        creator: "test".to_string(),
         description: "test".to_string(),
         time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S").unwrap(),
         asset_id: 1,
@@ -222,7 +222,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     // Create a new ticket.
     let response = client
         .post(base)
-        .header(desk_header.clone())
+        .header(user_header.clone())
         .json(&ticket)
         .dispatch();
     assert_eq!(response.status(), Status::NotFound);
@@ -252,9 +252,11 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     // Add some random tickets, ensure they're listable and readable.
     for i in 1..=N {
         let title = format!("My Ticket - {}", i);
+        let creator = format!("My Ticket Creator - {}", i);
         let description = format!("Once upon a time, at {}'o clock...", i);
         let ticket = InTicket {
             title: title.clone(),
+            creator: creator.clone(),
             description: description.clone(),
             time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S")
                 .unwrap(),
@@ -271,7 +273,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         let response = client
             .post(base)
             .json(&ticket)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Ticket>();
         assert_eq!(response.unwrap(), ticket);
@@ -279,7 +281,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         // Ensure the index shows one more ticket.
         let list = client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>()
             .unwrap();
@@ -289,7 +291,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         let last = list.last().unwrap();
         let response = client
             .get(format!("{}/{}", base, last))
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch();
         assert_eq!(response.into_json::<Ticket>().unwrap(), ticket);
     }
@@ -299,7 +301,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         // Get a valid ID from the index.
         let list = client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>()
             .unwrap();
@@ -309,6 +311,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         let ticket = Ticket {
             id: i32::try_from(*id).unwrap(),
             title: "patched title".to_string(),
+            creator: "patched creator".to_string(),
             description: format!("Once upon a time, at {}'o clock...", id),
             time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S")
                 .unwrap(),
@@ -318,19 +321,19 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         let response = client
             .patch(format!("{}/{}", base, id))
             .json(&ticket)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch();
         assert_eq!(response.status(), Status::Forbidden);
         let response = client
             .patch(format!("{}/{}", base, id))
-            .header(user_header.clone())
+            .header(admin_header.clone())
             .json(&ticket)
             .dispatch();
         assert_eq!(response.status(), Status::Created);
         // Check that ticket is patched
         let response = client
             .get(format!("{}/{}", base, id))
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch();
         assert_eq!(response.into_json::<Ticket>().unwrap(), ticket);
     }
@@ -347,10 +350,10 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
 
-    // Test a photo retrieval with a desk token
+    // Test a photo retrieval with a user token
     let response = client
         .get(format!("{}/photos/{}", base, 1))
-        .header(desk_header.clone())
+        .header(user_header.clone())
         .dispatch();
     assert_eq!(response.into_string().unwrap(), "a body");
 
@@ -359,7 +362,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         // Get a valid ID from the index.
         let list = client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>()
             .unwrap();
@@ -390,7 +393,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     // Check that the photo is gone too
     let response = client
         .get(format!("{}/photos/{}", base, 1))
-        .header(desk_header.clone())
+        .header(user_header.clone())
         .dispatch();
     assert_eq!(response.status(), Status::NotFound);
 
@@ -407,7 +410,6 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     const N: usize = 20;
     let admin_header = Header::new("X-TOKEN", "$ADMIN$development_admin_token");
     let user_header = Header::new("X-TOKEN", "$USER$development_user_token");
-    let desk_header = Header::new("X-TOKEN", "$DESK$development_desk_token");
 
     // Clear everything from the database.
     assert_eq!(
@@ -417,7 +419,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     assert_eq!(
         client
             .delete(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .status(),
         Status::Forbidden
@@ -433,7 +435,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     assert_eq!(
         client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>(),
         Some(vec![])
@@ -441,6 +443,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
 
     // Add a comment to a non existing ticket (must fail)
     let comment = InComment {
+        creator: "test".to_string(),
         content: "test".to_string(),
         time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S").unwrap(),
         ticket_id: 1,
@@ -448,7 +451,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     // Create a new comment.
     let response = client
         .post(base)
-        .header(desk_header.clone())
+        .header(user_header.clone())
         .json(&comment)
         .dispatch();
     assert_eq!(response.status(), Status::NotFound);
@@ -478,6 +481,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     // Add a ticket
     let ticket = InTicket {
         title: "MyTicket".to_string(),
+        creator: "MyTicketCreator".to_string(),
         description: "MyDescription".to_string(),
         time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S").unwrap(),
         asset_id: asset_id,
@@ -495,7 +499,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     // Get a valid ticket id
     let ticket_id = client
         .get("/api/tickets")
-        .header(desk_header.clone())
+        .header(user_header.clone())
         .dispatch()
         .into_json::<Vec<i32>>()
         .unwrap()[0];
@@ -504,6 +508,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     for i in 1..=N {
         let comment = InComment {
             ticket_id: ticket_id,
+            creator: format!("My Comment Creator - {}", i),
             content: format!("My Comment - {}", i),
             time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S")
                 .unwrap(),
@@ -517,7 +522,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         // Create a new comment.
         let response = client
             .post(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .json(&comment)
             .dispatch()
             .into_json::<InComment>();
@@ -526,7 +531,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         // Ensure the index shows one more comment.
         let list = client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>()
             .unwrap();
@@ -536,7 +541,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         let last = list.last().unwrap();
         let response = client
             .get(format!("{}/{}", base, last))
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch();
         assert_eq!(response.into_json::<Comment>().unwrap(), comment);
     }
@@ -546,7 +551,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         // Get a valid ID from the index.
         let list = client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>()
             .unwrap();
@@ -555,6 +560,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         // Patch that comment.
         let comment = Comment {
             id: i32::try_from(*id).unwrap(),
+            creator: "patched creator".to_string(),
             content: "patched content".to_string(),
             time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S")
                 .unwrap(),
@@ -563,7 +569,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         let response = client
             .patch(format!("{}/{}", base, id))
             .json(&ticket)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch();
         assert_eq!(response.status(), Status::Forbidden);
         let response = client
@@ -581,7 +587,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         // Check that comment is patched
         let response = client
             .get(format!("{}/{}", base, id))
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch();
         assert_eq!(response.into_json::<Comment>().unwrap(), comment);
     }
@@ -591,7 +597,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         // Get a valid ID from the index.
         let list = client
             .get(base)
-            .header(desk_header.clone())
+            .header(user_header.clone())
             .dispatch()
             .into_json::<Vec<i64>>()
             .unwrap();
@@ -629,7 +635,6 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
 fn test_models() {
     env::set_var("ADMIN_TOKEN", "development_admin_token");
     env::set_var("USER_TOKEN", "development_user_token");
-    env::set_var("DESK_TOKEN", "development_desk_token");
     // NOTE: If we had more than one test running concurrently that dispatches
     // DB-accessing requests, we'd need transactions or to serialize all tests.
     let client = Client::tracked(

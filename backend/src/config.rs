@@ -16,14 +16,12 @@ fn random_string() -> std::string::String {
 pub struct Config {
     admin_token: String,
     user_token: String,
-    desk_token: String,
 }
 
 impl Config {
     pub fn init() -> Config {
         let admin_t = env::var("ADMIN_TOKEN");
         let user_t = env::var("USER_TOKEN");
-        let desk_t = env::var("DESK_TOKEN");
         let config = Config {
             admin_token: format!(
                 "$ADMIN${}",
@@ -41,18 +39,9 @@ impl Config {
                     user_t.unwrap()
                 }
             ),
-            desk_token: format!(
-                "$DESK${}",
-                if desk_t.is_err() {
-                    random_string()
-                } else {
-                    desk_t.unwrap()
-                }
-            ),
         };
         println!("Admin token is: {}", config.admin_token);
         println!("User token is: {}", config.user_token);
-        println!("Desk token is: {}", config.desk_token);
         config
     }
 }
@@ -104,33 +93,6 @@ impl<'r> FromRequest<'r> for UserToken<'r> {
         match req.headers().get_one("X-TOKEN") {
             None => Outcome::Failure((Status::Unauthorized, TokenError::Missing)),
             Some(token) if is_valid(token, req) => Outcome::Success(UserToken(token)),
-            Some(_) => Outcome::Failure((Status::Forbidden, TokenError::Invalid)),
-        }
-    }
-}
-
-pub struct DeskToken<'r>(&'r str);
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for DeskToken<'r> {
-    type Error = TokenError;
-
-    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        /// Returns true if `token` is a valid API token string.
-        fn is_valid(token: &str, req: &Request<'_>) -> bool {
-            match req.rocket().state::<Config>() {
-                Some(config) => {
-                    token == config.admin_token
-                        || token == config.user_token
-                        || token == config.desk_token
-                }
-                None => false,
-            }
-        }
-
-        match req.headers().get_one("X-TOKEN") {
-            None => Outcome::Failure((Status::Unauthorized, TokenError::Missing)),
-            Some(token) if is_valid(token, req) => Outcome::Success(DeskToken(token)),
             Some(_) => Outcome::Failure((Status::Forbidden, TokenError::Invalid)),
         }
     }

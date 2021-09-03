@@ -6,12 +6,14 @@ class Comment extends Serialisable with EquatableMixin {
   int id;
   int ticket_id;
   DateTime time;
+  String creator;
   String content;
 
   Comment(
       {required this.id,
       required this.ticket_id,
       required this.time,
+      required this.creator,
       required this.content});
 
   Map<String, dynamic> toJson() {
@@ -19,6 +21,7 @@ class Comment extends Serialisable with EquatableMixin {
       'id': id,
       'ticket_id': ticket_id,
       'time': time.toIso8601String(),
+      'creator': creator,
       'content': content
     };
   }
@@ -30,12 +33,13 @@ class Comment extends Serialisable with EquatableMixin {
         time: json['time'] != null
             ? DateTime.parse(json['time'])
             : DateTime.now(),
+        creator: json['creator'],
         content: json['content']);
   }
 
   @override
   List<Object> get props {
-    return [id, ticket_id, time, content];
+    return [id, ticket_id, time, creator, content];
   }
 
   @override

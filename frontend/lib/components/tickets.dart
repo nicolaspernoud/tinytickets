@@ -95,19 +95,19 @@ class _TicketsState extends State<Tickets> {
           padding: const EdgeInsets.all(8),
           child: Row(
             children: [
-              if (App().role == Role.admin || App().role == Role.user)
-                IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () {
-                      _edit(Ticket(
-                        id: 0,
-                        title: "",
-                        description: "",
-                        asset_id: 1,
-                        is_closed: false,
-                        time: DateTime.now(),
-                      ));
-                    }),
+              IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () {
+                    _edit(Ticket(
+                      id: 0,
+                      title: "",
+                      creator: "",
+                      description: "",
+                      asset_id: 1,
+                      is_closed: false,
+                      time: DateTime.now(),
+                    ));
+                  }),
               Expanded(
                 child: Container(
                   height: 50,

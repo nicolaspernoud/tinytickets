@@ -18,18 +18,21 @@ The front end is a flutter application, a web release is served by the back end,
 
 Roles haves the following rights :
 
-| Role      | Assets | Tickets | Comments |
-| --------- | ------ | ------- | -------- |
-| Help Desk | R      | CR      | CR       |
-| Users     | R      | CRU     | CR       |
-| Admin     | CRUD   | CRUD    | CRUD     |
+| Role  | Assets | Tickets | Comments |
+| ----- | ------ | ------- | -------- |
+| Users | R      | CR      | CR       |
+| Admin | CRUD   | CRUD    | CRUD     |
 
 The rights are defined by tokens, set as environment variables.
 
 ## Environment variables
 
-| Environment Variable | Usage                   | Default value                     |
-| -------------------- | ----------------------- | --------------------------------- |
-| USER_TOKEN           | API token for users     | random value (printed at startup) |
-| DESK_TOKEN           | API token for help desk | random value (printed at startup) |
-| ADMIN_TOKEN          | API token for admins    | random value (printed at startup) |
+| Environment Variable | Usage                                           | Default value                     |
+| -------------------- | ----------------------------------------------- | --------------------------------- |
+| USER_TOKEN           | API token for users                             | random value (printed at startup) |
+| ADMIN_TOKEN          | API token for admins                            | random value (printed at startup) |
+| MAIL_SERVER          | hostname of mail server for mail notifications  | empty (mails will not be send)    |
+| MAIL_USER            | mail user for authenticating on the mail server | empty (mails will not be send)    |
+| MAIL_PASSWORD        | mail password                                   | empty (mails will not be send)    |
+| MAIL_FROM            | mail address the mails will be sent from        | empty (mails will not be send)    |
+| MAIL_TO              | mail address the mails will be sent to          | empty (mails will not be send)    |

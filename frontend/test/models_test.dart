@@ -26,6 +26,7 @@ void main() {
           asset_id: 1,
           time: DateTime.now(),
           title: "a title",
+          creator: "a creator",
           description: "a description",
           is_closed: false);
       final a1Json = jsonEncode(t1.toJson());
@@ -37,7 +38,11 @@ void main() {
         'Converting a Comment to json an retrieving it should give the same Comment',
         () async {
       final Comment c1 = Comment(
-          id: 1, ticket_id: 1, time: DateTime.now(), content: "a content");
+          id: 1,
+          ticket_id: 1,
+          time: DateTime.now(),
+          creator: "a creator",
+          content: "a content");
       final a1Json = jsonEncode(c1.toJson());
       final c2 = Comment.fromJson(json.decode(a1Json));
       expect(c1, c2);

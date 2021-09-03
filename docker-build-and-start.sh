@@ -20,5 +20,4 @@ docker run -it \
     -e MAIL_FROM=***.***@***.com \
     -e ADMIN_TOKEN=admin \
     -e USER_TOKEN=user \
-    -e DESK_TOKEN=desk \
     tinytickets

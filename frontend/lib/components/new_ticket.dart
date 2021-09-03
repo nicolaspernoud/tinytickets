@@ -60,13 +60,15 @@ class _NewEditTicketState extends State<NewEditTicket> {
   }
 
   _imgToServer(int id) async {
-    final response = await http.post(
-      Uri.parse('$hostname/tickets/photos/${id.toString()}'),
-      headers: <String, String>{'X-TOKEN': token},
-      body: imageBytes,
-    );
-    if (response.statusCode != 200) {
-      throw Exception(response.body.toString());
+    if (imageBytes != null) {
+      final response = await http.post(
+        Uri.parse('$hostname/tickets/photos/${id.toString()}'),
+        headers: <String, String>{'X-TOKEN': token},
+        body: imageBytes,
+      );
+      if (response.statusCode != 200) {
+        throw Exception(response.body.toString());
+      }
     }
   }
 
@@ -125,6 +127,23 @@ class _NewEditTicketState extends State<NewEditTicket> {
                       initialValue: widget.ticket.title,
                       onChanged: (value) {
                         widget.ticket.title = value;
+                      },
+                    ),
+                    TextFormField(
+                      decoration: new InputDecoration(
+                          labelText:
+                              MyLocalizations.of(context)!.tr("creator")),
+                      // The validator receives the text that the user has entered.
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return MyLocalizations.of(context)!
+                              .tr("please_enter_some_text");
+                        }
+                        return null;
+                      },
+                      initialValue: widget.ticket.creator,
+                      onChanged: (value) {
+                        widget.ticket.creator = value;
                       },
                     ),
                     TextFormField(
@@ -223,6 +242,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                           _edit(Comment(
                                               id: 0,
                                               ticket_id: widget.ticket.id,
+                                              creator: "",
                                               content: "",
                                               time: DateTime.now()));
                                         },
@@ -239,7 +259,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                           ),
                         ],
                       ),
-                    if (App().role == Role.admin || App().role == Role.user)
+                    if (App().role == Role.admin || !isExisting)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
                         child: ElevatedButton(
@@ -251,8 +271,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                               try {
                                 if (isExisting) {
                                   await widget.crud.Update(widget.ticket);
-                                  if (imageBytes != null)
-                                    await _imgToServer(widget.ticket.id);
+                                  await _imgToServer(widget.ticket.id);
                                 } else {
                                   var t =
                                       await widget.crud.Create(widget.ticket);

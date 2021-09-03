@@ -8,6 +8,7 @@ class Ticket extends Serialisable with EquatableMixin {
   int asset_id;
   DateTime time;
   String title;
+  String creator;
   String description;
   bool is_closed;
   List<Comment> comments = [];
@@ -17,6 +18,7 @@ class Ticket extends Serialisable with EquatableMixin {
       required this.asset_id,
       required this.time,
       required this.title,
+      required this.creator,
       required this.description,
       required this.is_closed,
       this.comments = const []});
@@ -27,6 +29,7 @@ class Ticket extends Serialisable with EquatableMixin {
       'asset_id': asset_id,
       'time': time.toIso8601String(),
       'title': title,
+      'creator': creator,
       'description': description,
       'is_closed': is_closed
     };
@@ -40,6 +43,7 @@ class Ticket extends Serialisable with EquatableMixin {
             ? DateTime.parse(json['time'])
             : DateTime.now(),
         title: json['title'],
+        creator: json['creator'],
         description: json['description'],
         is_closed: json['is_closed'],
         comments: json['comments'] == null
@@ -56,6 +60,7 @@ class Ticket extends Serialisable with EquatableMixin {
       asset_id,
       time,
       title,
+      creator,
       description,
       is_closed,
     ];

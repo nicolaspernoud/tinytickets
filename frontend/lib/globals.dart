@@ -23,8 +23,6 @@ class App {
         return Role.admin;
       case "USER":
         return Role.user;
-      case "DESK":
-        return Role.desk;
       default:
         return Role.unknown;
     }
@@ -35,5 +33,4 @@ enum Role {
   unknown,
   admin,
   user,
-  desk,
 }

@@ -23,15 +23,15 @@ Future<void> main() async {
     // Check that the app title is displayed
     expect(find.text('Tiny Tickets'), findsOneWidget);
     await tester.pump();
-    // Check that we do not display the ticket list on startup if a desk token is not set
+    // Check that we do not display the ticket list on startup if a user token is not set
     expect(find.text("2021-08-12 - MyTicket"), findsNothing);
     await tester.tap(find.byIcon(Icons.settings));
     await tester.pumpAndSettle();
-    // Enter a desk token
-    await tester.enterText(find.byKey(Key("tokenField")), '\$DESK\$desk');
+    // Enter a user token
+    await tester.enterText(find.byKey(Key("tokenField")), '\$USER\$user');
     await tester.pageBack();
     await tester.pumpAndSettle();
-    // Check that we display the ticket list on startup if a desk token is set
+    // Check that we display the ticket list on startup if a user token is set
     expect(find.text("2021-08-12 - MyTicket"), findsOneWidget);
 
     // To print the widget tree :
