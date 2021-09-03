@@ -83,6 +83,18 @@ class _NewEditTicketState extends State<NewEditTicket> {
     }
   }
 
+  // Time selector
+  Future<void> _selectTime() async {
+    final date = await showDatePicker(
+        context: context,
+        initialDate: widget.ticket.time,
+        firstDate: DateTime(2014),
+        lastDate: DateTime.now().add(Duration(days: 30)));
+    setState(() {
+      widget.ticket.time = date!;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Build a Form widget using the _formKey created above.
@@ -113,6 +125,11 @@ class _NewEditTicketState extends State<NewEditTicket> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    OutlinedButton(
+                        onPressed: () async {
+                          await _selectTime();
+                        },
+                        child: Text(formatTime(widget.ticket.time))),
                     TextFormField(
                       decoration: new InputDecoration(
                           labelText: MyLocalizations.of(context)!.tr("title")),
