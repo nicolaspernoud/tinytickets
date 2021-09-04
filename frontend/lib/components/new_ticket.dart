@@ -120,9 +120,9 @@ class _NewEditTicketState extends State<NewEditTicket> {
                 ]
               : null,
         ),
-        body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
+        body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,
                 child: Column(
