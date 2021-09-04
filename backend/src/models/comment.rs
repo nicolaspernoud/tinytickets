@@ -1,16 +1,18 @@
-use crate::config::{AdminToken, UserToken};
-use crate::models::db::Db;
-use crate::models::db::Result;
-use crate::models::schema::*;
-use crate::models::ticket::Ticket;
-use rocket::fairing::AdHoc;
-use rocket::response::status::Created;
-use rocket::response::status::NotFound;
-use rocket::serde::{json::Json, Deserialize, Serialize};
-
-use rocket_sync_db_pools::diesel;
-
 use self::diesel::prelude::*;
+use crate::{
+    config::{AdminToken, UserToken},
+    models::{
+        db::{Db, Result},
+        schema::*,
+        ticket::Ticket,
+    },
+};
+use rocket::{
+    fairing::AdHoc,
+    response::status::{Created, NotFound},
+    serde::{json::Json, Deserialize, Serialize},
+};
+use rocket_sync_db_pools::diesel;
 
 #[derive(
     Identifiable,
@@ -88,9 +90,7 @@ async fn create(
         .await
     {
         Ok(..) => Ok(Created::new("/").body(comment)),
-        Err(..) => {
-            return Err(NotFound("Could not create comment".to_string()));
-        }
+        Err(..) => Err(NotFound("Could not create comment".to_string())),
     }
 }
 

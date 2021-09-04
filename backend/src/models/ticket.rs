@@ -1,25 +1,24 @@
-use crate::config::{AdminToken, UserToken};
-use crate::mail::send_mail;
-use crate::models::asset::Asset;
-use crate::models::comment::Comment;
-use crate::models::db::Db;
-use crate::models::db::Result;
-use crate::models::schema::*;
-use handlebars::Context;
-use handlebars::Handlebars;
-use handlebars::Helper;
-use handlebars::HelperResult;
-use handlebars::Output;
-use handlebars::RenderContext;
-use handlebars::RenderError;
-use rocket::data::{Data, ToByteUnit};
-use rocket::fairing::AdHoc;
-use rocket::response::status::Created;
-use rocket::response::status::NotFound;
-use rocket::response::Debug;
-use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::tokio::fs::File;
-use rocket::tokio::task::spawn_blocking;
+use crate::{
+    config::{AdminToken, UserToken},
+    mail::send_mail,
+    models::{
+        asset::Asset,
+        comment::Comment,
+        db::{Db, Result},
+        schema::*,
+    },
+};
+use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
+use rocket::{
+    data::{Data, ToByteUnit},
+    fairing::AdHoc,
+    response::{
+        status::{Created, NotFound},
+        Debug,
+    },
+    serde::{json::Json, Deserialize, Serialize},
+    tokio::{fs::File, task::spawn_blocking},
+};
 use std::fs;
 
 use rocket_sync_db_pools::diesel;
@@ -120,13 +119,9 @@ async fn create(
                 .order(tickets::id.desc())
                 .first::<Ticket>(conn)
             {
-                Ok(r) => {
-                    return Ok(r);
-                }
-                Err(..) => {
-                    return Err(NotFound("Could not find ticket id".to_string()));
-                }
-            };
+                Ok(r) => Ok(r),
+                Err(..) => Err(NotFound("Could not find ticket id".to_string())),
+            }
         })
         .await
     {
@@ -136,11 +131,9 @@ async fn create(
                 Ok(r) => send_mail(r.0, r.1),
                 Err(e) => println!("Handlebars error : {}", e),
             });
-            return Ok(Created::new("/").body(Json(t)));
+            Ok(Created::new("/").body(Json(t)))
         }
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -186,7 +179,7 @@ async fn mail_open(db: Db, _token: AdminToken<'_>) -> Result<Json<Vec<Ticket>>> 
                 .load(conn)
         })
         .await?;
-    if open_tickets.len() > 0 {
+    if !open_tickets.is_empty() {
         match open_tickets_template(&open_tickets) {
             Ok(r) => send_mail(r.0, r.1),
             Err(e) => println!("Handlebars error : {}", e),
@@ -222,9 +215,7 @@ async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Result<Json<OutTicket>,
         .await
     {
         Ok(e) => Ok(Json(e)),
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -270,9 +261,7 @@ async fn retrieve(id: i32, _token: UserToken<'_>) -> Result<File, NotFound<Strin
     let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
     match File::open(&filename).await {
         Ok(f) => Ok(f),
-        Err(..) => {
-            return Err(NotFound("no image available".to_string()));
-        }
+        Err(..) => Err(NotFound("no image available".to_string())),
     }
 }
 
@@ -295,19 +284,15 @@ fn new_ticket_template(t: &Ticket) -> Result<(String, String), RenderError> {
         .expect("templates directory must exist!");
 
     match handlebars.render("new_ticket_subject", &t) {
-        Ok(subject) => {
-            match handlebars.render("new_ticket_body", &t) {
-                Ok(body) => {
-                    return Ok((subject, body));
-                }
-                Err(e) => return Err(e),
-            };
-        }
-        Err(e) => return Err(e),
-    };
+        Ok(subject) => match handlebars.render("new_ticket_body", &t) {
+            Ok(body) => Ok((subject, body)),
+            Err(e) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
 }
 
-fn open_tickets_template(t: &Vec<Ticket>) -> Result<(String, String), RenderError> {
+fn open_tickets_template(t: &[Ticket]) -> Result<(String, String), RenderError> {
     let mut handlebars = Handlebars::new();
     handlebars
         .register_templates_directory(".hbs", "templates")
@@ -316,16 +301,12 @@ fn open_tickets_template(t: &Vec<Ticket>) -> Result<(String, String), RenderErro
     handlebars.register_helper("formattime", Box::new(formattime));
 
     match handlebars.render("open_tickets_subject", &t) {
-        Ok(subject) => {
-            match handlebars.render("open_tickets_body", &t) {
-                Ok(body) => {
-                    return Ok((subject, body));
-                }
-                Err(e) => return Err(e),
-            };
-        }
-        Err(e) => return Err(e),
-    };
+        Ok(subject) => match handlebars.render("open_tickets_body", &t) {
+            Ok(body) => Ok((subject, body)),
+            Err(e) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
 }
 
 fn formattime(

@@ -395,6 +395,18 @@ class _AssetsDropDownState extends State<AssetsDropDown> {
         future: assets,
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.length > 0) {
+            // Check that index exists
+            var minID = snapshot.data!.first.id;
+            var indexExists = false;
+            for (final e in snapshot.data!) {
+              if (e.id < minID) minID = e.id;
+              if (_index == e.id) {
+                indexExists = true;
+                break;
+              }
+              ;
+            }
+            if (!indexExists) _index = minID;
             return Row(
               children: [
                 Text(MyLocalizations.of(context)!.tr("asset")),

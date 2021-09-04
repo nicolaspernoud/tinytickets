@@ -1,7 +1,4 @@
-use rocket::fairing::AdHoc;
-use rocket::response::Debug;
-use rocket::{Build, Rocket};
-
+use rocket::{fairing::AdHoc, response::Debug, Build, Rocket};
 use rocket_sync_db_pools::diesel;
 
 #[database("diesel")]

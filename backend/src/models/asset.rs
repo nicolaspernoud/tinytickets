@@ -1,11 +1,15 @@
-use crate::config::AdminToken;
-use crate::config::UserToken;
-use crate::models::db::Db;
-use crate::models::db::Result;
-use crate::models::schema::*;
-use rocket::fairing::AdHoc;
-use rocket::response::status::Created;
-use rocket::serde::{json::Json, Deserialize, Serialize};
+use crate::{
+    config::{AdminToken, UserToken},
+    models::{
+        db::{Db, Result},
+        schema::*,
+    },
+};
+use rocket::{
+    fairing::AdHoc,
+    response::status::Created,
+    serde::{json::Json, Deserialize, Serialize},
+};
 
 use rocket_sync_db_pools::diesel;
 
