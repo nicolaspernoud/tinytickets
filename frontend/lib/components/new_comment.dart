@@ -103,7 +103,11 @@ class _NewEditCommentState extends State<NewEditComment> {
                             Navigator.pop(context);
                           }
                         },
-                        child: Text(MyLocalizations.of(context)!.tr("submit")),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child:
+                              Text(MyLocalizations.of(context)!.tr("submit")),
+                        ),
                       ),
                     ),
                 ],

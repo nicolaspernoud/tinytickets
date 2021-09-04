@@ -36,7 +36,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
   late Future<Ticket> ticketWithComments;
   late bool isExisting;
 
-  Uint8List? imageBytes;
+  Future<Uint8List>? imageBytes;
   String hostname = (App().prefs.getString("hostname") ?? "") + "/api";
   String token = App().prefs.getString("token") ?? "";
 
@@ -55,7 +55,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
   _imgFromGallery() async {
     final temp = await ImagePicker().pickImage(
         source: ImageSource.camera, imageQuality: 80, maxWidth: 1280);
-    imageBytes = await temp!.readAsBytes();
+    imageBytes = temp!.readAsBytes();
     setState(() {});
   }
 
@@ -64,7 +64,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
       final response = await http.post(
         Uri.parse('$hostname/tickets/photos/${id.toString()}'),
         headers: <String, String>{'X-TOKEN': token},
-        body: imageBytes,
+        body: await imageBytes,
       );
       if (response.statusCode != 200) {
         throw Exception(response.body.toString());
@@ -78,7 +78,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
       headers: <String, String>{'X-TOKEN': token},
     );
     if (response.statusCode == 200) {
-      imageBytes = response.bodyBytes;
+      imageBytes = Future.value(response.bodyBytes);
       setState(() {});
     }
   }
@@ -129,7 +129,10 @@ class _NewEditTicketState extends State<NewEditTicket> {
                         onPressed: () async {
                           await _selectTime();
                         },
-                        child: Text(formatTime(widget.ticket.time))),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text(formatTime(widget.ticket.time)),
+                        )),
                     TextFormField(
                       decoration: new InputDecoration(
                           labelText: MyLocalizations.of(context)!.tr("title")),
@@ -181,23 +184,40 @@ class _NewEditTicketState extends State<NewEditTicket> {
                       },
                     ),
                     SizedBox(height: 20),
-                    OutlinedButton(
-                      onPressed: _imgFromGallery,
-                      child:
-                          Text(MyLocalizations.of(context)!.tr("pick_photo")),
-                    ),
-                    SizedBox(height: 20),
-                    if (imageBytes != null)
-                      Image.memory(
-                        imageBytes!,
-                        fit: BoxFit.fill,
-                        height: 300,
+                    Center(
+                      child: FutureBuilder<Uint8List>(
+                        future: imageBytes,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data != null) {
+                            return InkWell(
+                              onTap: () {
+                                _imgFromGallery();
+                              },
+                              child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20.0),
+                                  child: Image.memory(
+                                    snapshot.data!,
+                                    fit: BoxFit.fill,
+                                    height: 300,
+                                  )),
+                            );
+                          } else if (snapshot.hasError) {
+                            return Text('${snapshot.error}');
+                          }
+                          return IconButton(
+                              onPressed: () {
+                                _imgFromGallery();
+                              },
+                              icon: Icon(Icons.camera_alt));
+                        },
                       ),
+                    ),
                     AssetsDropDown(
                       crud: widget.assetsCrud,
                       callback: (val) => widget.ticket.asset_id = val,
                       initialIndex: widget.ticket.asset_id,
                     ),
+                    SizedBox(height: 20),
                     Row(
                       children: [
                         Text(MyLocalizations.of(context)!.tr("closed")),
@@ -208,101 +228,111 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                 })),
                       ],
                     ),
+                    SizedBox(height: 20),
                     if (isExisting)
-                      Column(
-                        children: [
-                          Text(MyLocalizations.of(context)!.tr("comments")),
-                          FutureBuilder<Ticket>(
-                            future: ticketWithComments,
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                return Column(
-                                  children: [
-                                    ...snapshot.data!.comments
-                                        .map((c) => Card(
-                                                child: InkWell(
-                                              splashColor:
-                                                  Colors.blue.withAlpha(30),
-                                              onTap: () {
-                                                _edit(c);
-                                              },
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: <Widget>[
-                                                  ListTile(
-                                                    leading:
-                                                        Icon(Icons.comment),
-                                                    title: Text(
-                                                        formatTime(c.time)),
-                                                    subtitle: Text(c.content),
-                                                    trailing:
-                                                        App().role == Role.admin
-                                                            ? IconButton(
-                                                                icon: Icon(Icons
-                                                                    .delete_forever),
-                                                                onPressed: () {
-                                                                  _delete(c);
-                                                                },
-                                                              )
-                                                            : null,
-                                                  ),
-                                                ],
-                                              ),
-                                            )))
-                                        .toList(),
-                                    Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: IconButton(
-                                        icon: const Icon(Icons.add_comment),
-                                        color: Colors.blue,
-                                        onPressed: () {
-                                          _edit(Comment(
-                                              id: 0,
-                                              ticket_id: widget.ticket.id,
-                                              creator: "",
-                                              content: "",
-                                              time: DateTime.now()));
-                                        },
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              MyLocalizations.of(context)!.tr("comments"),
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 20),
+                            FutureBuilder<Ticket>(
+                              future: ticketWithComments,
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  return Column(
+                                    children: [
+                                      ...snapshot.data!.comments
+                                          .map((c) => Card(
+                                                  child: InkWell(
+                                                splashColor:
+                                                    Colors.blue.withAlpha(30),
+                                                onTap: () {
+                                                  _edit(c);
+                                                },
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: <Widget>[
+                                                    ListTile(
+                                                      leading:
+                                                          Icon(Icons.comment),
+                                                      title: Text(
+                                                          formatTime(c.time) +
+                                                              " - " +
+                                                              c.creator),
+                                                      subtitle: Text(c.content),
+                                                      trailing: App().role ==
+                                                              Role.admin
+                                                          ? IconButton(
+                                                              icon: Icon(Icons
+                                                                  .delete_forever),
+                                                              onPressed: () {
+                                                                _delete(c);
+                                                              },
+                                                            )
+                                                          : null,
+                                                    ),
+                                                  ],
+                                                ),
+                                              )))
+                                          .toList(),
+                                      Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.add_comment),
+                                          color: Colors.blue,
+                                          onPressed: () {
+                                            _edit(Comment(
+                                                id: 0,
+                                                ticket_id: widget.ticket.id,
+                                                creator: "",
+                                                content: "",
+                                                time: DateTime.now()));
+                                          },
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                );
-                              } else if (snapshot.hasError) {
-                                return Text('${snapshot.error}');
-                              }
-                              // By default, show a loading spinner.
-                              return const CircularProgressIndicator();
-                            },
-                          ),
-                        ],
-                      ),
-                    if (App().role == Role.admin || !isExisting)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            // Validate returns true if the form is valid, or false otherwise.
-                            if (_formKey.currentState!.validate()) {
-                              var msg = MyLocalizations.of(context)!
-                                  .tr("ticket_created");
-                              try {
-                                if (isExisting) {
-                                  await widget.crud.Update(widget.ticket);
-                                  await _imgToServer(widget.ticket.id);
-                                } else {
-                                  var t =
-                                      await widget.crud.Create(widget.ticket);
-                                  await _imgToServer(t.id);
+                                    ],
+                                  );
+                                } else if (snapshot.hasError) {
+                                  return Text('${snapshot.error}');
                                 }
-                              } catch (e) {
-                                msg = e.toString();
+                                // By default, show a loading spinner.
+                                return const CircularProgressIndicator();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    SizedBox(height: 20),
+                    if (App().role == Role.admin || !isExisting)
+                      ElevatedButton(
+                        onPressed: () async {
+                          // Validate returns true if the form is valid, or false otherwise.
+                          if (_formKey.currentState!.validate()) {
+                            var msg = MyLocalizations.of(context)!
+                                .tr("ticket_created");
+                            try {
+                              if (isExisting) {
+                                await widget.crud.Update(widget.ticket);
+                                await _imgToServer(widget.ticket.id);
+                              } else {
+                                var t = await widget.crud.Create(widget.ticket);
+                                await _imgToServer(t.id);
                               }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(msg)),
-                              );
-                              Navigator.pop(context);
+                            } catch (e) {
+                              msg = e.toString();
                             }
-                          },
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(msg)),
+                            );
+                            Navigator.pop(context);
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
                           child:
                               Text(MyLocalizations.of(context)!.tr("submit")),
                         ),

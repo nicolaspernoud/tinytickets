@@ -37,7 +37,13 @@ class _SettingsState extends State<Settings> {
             children: [
               settingsField(),
               if (App().role == Role.admin) ...[
-                Text(MyLocalizations.of(context)!.tr("assets")),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(
+                    MyLocalizations.of(context)!.tr("assets"),
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
                 FutureBuilder<List<Asset>>(
                   future: assets,
                   builder: (context, snapshot) {
@@ -118,6 +124,7 @@ class settingsField extends StatelessWidget {
             },
             key: Key("hostnameField"),
           ),
+        SizedBox(height: 20),
         TextFormField(
           initialValue: App().prefs.getString("token"),
           decoration: new InputDecoration(
