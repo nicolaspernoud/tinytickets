@@ -55,8 +55,10 @@ class _NewEditTicketState extends State<NewEditTicket> {
   _imgFromGallery() async {
     final temp = await ImagePicker().pickImage(
         source: ImageSource.camera, imageQuality: 80, maxWidth: 1280);
-    imageBytes = temp!.readAsBytes();
-    setState(() {});
+    if (temp != null) {
+      imageBytes = temp.readAsBytes();
+      setState(() {});
+    }
   }
 
   _imgToServer(int id) async {
@@ -90,9 +92,10 @@ class _NewEditTicketState extends State<NewEditTicket> {
         initialDate: widget.ticket.time,
         firstDate: DateTime(2014),
         lastDate: DateTime.now().add(Duration(days: 30)));
-    setState(() {
-      widget.ticket.time = date!;
-    });
+    if (date != null)
+      setState(() {
+        widget.ticket.time = date;
+      });
   }
 
   @override

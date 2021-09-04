@@ -7,6 +7,7 @@ import 'models/crud.dart';
 import 'models/ticket.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await App().init();
   runApp(MyApp());
 }
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tiny Tickets',
       theme: ThemeData(
-        primarySwatch: Colors.blueGrey,
+        primarySwatch: Colors.amber,
       ),
       home: MyHomePage(title: 'Tiny Tickets'),
       localizationsDelegates: [

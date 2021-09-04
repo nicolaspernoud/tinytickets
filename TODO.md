@@ -1,5 +1,0 @@
-# BUGS
-
-# FEATURES
-
-Android build

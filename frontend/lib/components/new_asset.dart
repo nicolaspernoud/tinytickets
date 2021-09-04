@@ -103,7 +103,10 @@ class _NewEditAssetState extends State<NewEditAsset> {
                           Navigator.pop(context);
                         }
                       },
-                      child: Text(MyLocalizations.of(context)!.tr("submit")),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(MyLocalizations.of(context)!.tr("submit")),
+                      ),
                     ),
                   ),
                 ],

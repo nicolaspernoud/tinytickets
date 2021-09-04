@@ -76,7 +76,7 @@ class _TicketsState extends State<Tickets> {
               Image.asset(
                 'assets/icon/icon.png',
                 fit: BoxFit.contain,
-                height: 32,
+                height: 40,
               ),
               const SizedBox(width: 8),
               Container(

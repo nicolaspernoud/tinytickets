@@ -4,10 +4,10 @@ on:
       - "*"
   pull_request:
     types: [opened, synchronize, reopened]
-name: Main Workflow
+name: Build backend with web frontend
 jobs:
   docker-build:
-    name: Build image and push to Docker Hub
+    name: Build backend with web frontend as docker image and push to docker hub
     runs-on: ubuntu-latest
     steps:
       - name: Code Checkout
@@ -23,5 +23,39 @@ jobs:
           docker buildx build --push \
             --tag nicolaspernoud/tinytickets:"$([[ ${GITHUB_REF##*/} = main ]] && echo "latest" || echo "${GITHUB_REF##*/}")" \
             .
-
-# --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64 .
+  app-build:
+    name: Build frontend Android app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+      - name: Export Release Timestamp
+        run: echo "APP_VERSION=$(date +'%Y-%m-%d_%H-%m-%S')" >> $GITHUB_ENV
+      - name: Set up Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: "12.x"
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v1
+        with:
+          channel: "stable"
+      - name: Decode android/key.jks
+        run: echo "${{ secrets.KEY_JKS_PROD }}" | base64 --decode > android/key.jks
+      - name: Decode android/key.properties
+        run: echo "${{ secrets.KEY_PROPERTIES_PROD }}" | base64 --decode > android/key.properties
+      - name: Install pub Dependencies
+        run: flutter pub get
+      - name: Run Tests
+        run: flutter test
+      - name: Build Android App
+        run: flutter build apk --split-per-abi
+      - name: Release Apps
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.APP_VERSION }}
+          name: ${{ env.APP_VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: "frontend/build/app/outputs/apk/release/*.apk"
