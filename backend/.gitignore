@@ -2,3 +2,4 @@
 db.sqlite*
 /data
 start.sh
+start.ps1

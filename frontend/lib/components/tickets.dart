@@ -70,7 +70,20 @@ class _TicketsState extends State<Tickets> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text(widget.title),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/icon/icon.png',
+                fit: BoxFit.contain,
+                height: 32,
+              ),
+              const SizedBox(width: 8),
+              Container(
+                  child: Text("${widget.title}",
+                      style: TextStyle(fontWeight: FontWeight.bold)))
+            ],
+          ),
           actions: [
             IconButton(
                 icon: const Icon(Icons.settings),
