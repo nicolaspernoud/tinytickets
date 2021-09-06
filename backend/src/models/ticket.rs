@@ -9,6 +9,7 @@ use crate::{
     },
 };
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
+use image::imageops::FilterType::Lanczos3;
 use rocket::{
     data::{Data, ToByteUnit},
     fairing::AdHoc,
@@ -252,8 +253,33 @@ async fn upload(
 ) -> Result<String, Debug<std::io::Error>> {
     fs::create_dir_all(PHOTOS_PATH)?;
     let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
-    image.open(10.mebibytes()).into_file(&filename).await?;
-    Ok(filename)
+    let img_bytes = image.open(10.mebibytes()).into_bytes().await?;
+
+    //let img = image::open("tests/images/jpg/progressive/cat.jpg").unwrap();
+    match spawn_blocking(move || image::load_from_memory(&img_bytes)).await {
+        Ok(r) => match r {
+            Ok(r) => {
+                match r.resize(1280, 1280, Lanczos3).save_with_format(
+                    &filename,
+                    image::ImageFormat::from_extension("jpg").unwrap(),
+                ) {
+                    Ok(_) => Ok(filename),
+                    Err(_) => Err(Debug::from(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Error saving image",
+                    ))),
+                }
+            }
+            Err(_) => Err(Debug::from(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Error loading image",
+            ))),
+        },
+        Err(_) => Err(Debug::from(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Error loading image",
+        ))),
+    }
 }
 
 #[get("/photos/<id>")]

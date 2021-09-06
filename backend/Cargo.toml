@@ -17,6 +17,7 @@ serde_json = "1.0"
 rand = "0.8.4"
 lettre = "0.10.0-rc.3"
 handlebars = { version = "4.1.2", features = ["dir_source"] }
+image = "0.23.14"
 
 [dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.1"

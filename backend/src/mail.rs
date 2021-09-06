@@ -9,6 +9,22 @@ pub fn send_mail(subject: String, body: String) {
     let to = env::var("MAIL_TO").unwrap_or_default();
     let from = env::var("MAIL_FROM").unwrap_or_default();
 
+    /*let mut mailboxes = Mailboxes::new();
+    let addresses = to.split(",");
+
+    for a in addresses {
+        let address = a.parse::<Address>().unwrap();
+        mailboxes.push(Mailbox::new(None, address));
+    }
+
+    let email = Message::builder()
+        .from(from.parse().unwrap())
+        .reply_to(from.parse().unwrap())
+        .header(header::To(mailboxes))
+        .subject(subject)
+        .body(body)
+        .expect("Could not send email : could not create the message.");*/
+
     let email = Message::builder()
         .from(from.parse().unwrap())
         .reply_to(from.parse().unwrap())
