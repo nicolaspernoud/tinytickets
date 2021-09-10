@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
-use image::imageops::FilterType::Lanczos3;
+use image::{imageops::FilterType::Lanczos3, GenericImageView};
 use rocket::{
     data::{Data, ToByteUnit},
     fairing::AdHoc,
@@ -167,7 +167,9 @@ async fn list(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<i32>>> {
 
 #[get("/all")]
 async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Ticket>>> {
-    let all_tickets: Vec<Ticket> = db.run(|conn| tickets::table.load(conn)).await?;
+    let all_tickets: Vec<Ticket> = db
+        .run(|conn| tickets::table.order_by(tickets::time.desc()).load(conn))
+        .await?;
     Ok(Json(all_tickets))
 }
 
@@ -255,14 +257,19 @@ async fn upload(
     let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
     let img_bytes = image.open(10.mebibytes()).into_bytes().await?;
 
-    //let img = image::open("tests/images/jpg/progressive/cat.jpg").unwrap();
     match spawn_blocking(move || image::load_from_memory(&img_bytes)).await {
         Ok(r) => match r {
             Ok(r) => {
-                match r.resize(1280, 1280, Lanczos3).save_with_format(
-                    &filename,
-                    image::ImageFormat::from_extension("jpg").unwrap(),
-                ) {
+                match r
+                    .resize(
+                        std::cmp::min(1280, r.dimensions().0),
+                        std::cmp::min(1280, r.dimensions().1),
+                        Lanczos3,
+                    )
+                    .save_with_format(
+                        &filename,
+                        image::ImageFormat::from_extension("jpg").unwrap(),
+                    ) {
                     Ok(_) => Ok(filename),
                     Err(_) => Err(Debug::from(std::io::Error::new(
                         std::io::ErrorKind::Other,
@@ -291,12 +298,31 @@ async fn retrieve(id: i32, _token: UserToken<'_>) -> Result<File, NotFound<Strin
     }
 }
 
+#[delete("/photos/<id>")]
+async fn delete_photo(id: i32, _token: UserToken<'_>) -> Result<String, NotFound<String>> {
+    let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
+    match spawn_blocking(move || fs::remove_file(&filename)).await {
+        Ok(..) => Ok("File deleted".to_string()),
+        Err(..) => Err(NotFound("no image available".to_string())),
+    }
+}
+
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("Tickets routes", |rocket| async {
         rocket.mount(
             "/api/tickets",
             routes![
-                options, list, list_all, read, create, update, delete, destroy, upload, retrieve,
+                options,
+                list,
+                list_all,
+                read,
+                create,
+                update,
+                delete,
+                destroy,
+                upload,
+                retrieve,
+                delete_photo,
                 mail_open
             ],
         )

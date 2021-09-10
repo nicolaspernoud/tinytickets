@@ -5,6 +5,7 @@ use crate::models::ticket::{InTicket, Ticket};
 use rocket::http::Header;
 use std::env;
 use std::fs;
+use std::path::Path;
 
 use chrono::NaiveDateTime;
 
@@ -343,9 +344,10 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     assert_eq!(response.status(), Status::Unauthorized);
 
     // Test a photo upload with a user token
+    let img_body = fs::read("test_img.jpg").unwrap();
     let response = client
         .post(format!("{}/photos/{}", base, 1))
-        .body("a body")
+        .body(&img_body)
         .header(user_header.clone())
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
@@ -355,7 +357,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         .get(format!("{}/photos/{}", base, 1))
         .header(user_header.clone())
         .dispatch();
-    assert_eq!(response.into_string().unwrap(), "a body");
+    assert_eq!(response.into_bytes().unwrap(), img_body);
 
     // Now delete all of the tickets.
     for _ in 1..=N {
@@ -633,6 +635,12 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
 
 #[test]
 fn test_models() {
+    // Remove the db to start fresh
+    if Path::new("db/db.sqlite").exists() {
+        if let Err(e) = fs::remove_file("db/db.sqlite") {
+            panic!("error removing db: {}", e);
+        }
+    }
     env::set_var("ADMIN_TOKEN", "development_admin_token");
     env::set_var("USER_TOKEN", "development_user_token");
     // NOTE: If we had more than one test running concurrently that dispatches
@@ -643,11 +651,6 @@ fn test_models() {
             .manage(Config::init()),
     )
     .unwrap();
-
-    // Remove the db to start fresh
-    if let Err(e) = fs::remove_file("db/db.sqlite*") {
-        println!("error removing db: {}", e);
-    }
 
     test_assets("/api/assets", &client);
     test_tickets("/api/tickets", &client);
