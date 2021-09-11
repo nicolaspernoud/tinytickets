@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -33,9 +34,12 @@ class NewEditTicket extends StatefulWidget {
 }
 
 class _NewEditTicketState extends State<NewEditTicket> {
+  static const JPG_IMAGE_QUALITY = 80;
+
   final _formKey = GlobalKey<FormState>();
   late Future<Ticket> ticketWithComments;
   late bool isExisting;
+  bool submitting = false;
 
   Future<Uint8List?>? imageBytes;
   String hostname = (App().prefs.getString("hostname") ?? "") + "/api";
@@ -53,24 +57,36 @@ class _NewEditTicketState extends State<NewEditTicket> {
     }
   }
 
-  _imgFromGallery() async {
+  _imgFromCamera() async {
     final temp = await ImagePicker().pickImage(
-        source: ImageSource.camera, imageQuality: 80, maxWidth: 1280);
+        source: ImageSource.camera,
+        imageQuality: JPG_IMAGE_QUALITY,
+        maxWidth: 1280);
     if (temp != null) {
       imageBytes = temp.readAsBytes();
       setState(() {});
     }
   }
 
-  _imgToServer(int id) async {
-    var img = await imageBytes;
-    final capturedImage = image.decodeImage(img!);
+  static Future<Uint8List> bakeOrientation(Uint8List img) async {
+    final capturedImage = image.decodeImage(img);
     final orientedImage = image.bakeOrientation(capturedImage!);
-    if (imageBytes != null) {
+    final encodedImage =
+        image.encodeJpg(orientedImage, quality: JPG_IMAGE_QUALITY);
+    return encodedImage as Uint8List;
+  }
+
+  Future<void> _imgToServer(int id) async {
+    Uint8List? img = await imageBytes;
+    if (imageBytes != null && img != null) {
+      // Bake orientation on devices only as it is very slow and web does not support compute !!!
+      if (!kIsWeb) {
+        img = await compute(bakeOrientation, img);
+      }
       final response = await http.post(
           Uri.parse('$hostname/tickets/photos/${id.toString()}'),
           headers: <String, String>{'X-TOKEN': token},
-          body: image.encodeJpg(orientedImage, quality: 80));
+          body: img);
       if (response.statusCode != 200) {
         throw Exception(response.body.toString());
       }
@@ -204,7 +220,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                           children: [
                             InkWell(
                               onTap: () {
-                                _imgFromGallery();
+                                _imgFromCamera();
                               },
                               child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20.0),
@@ -228,7 +244,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                       }
                       return IconButton(
                           onPressed: () {
-                            _imgFromGallery();
+                            _imgFromCamera();
                           },
                           icon: Icon(Icons.camera_alt));
                     },
@@ -330,32 +346,57 @@ class _NewEditTicketState extends State<NewEditTicket> {
                   ),
                 SizedBox(height: 20),
                 if (App().role == Role.admin || !isExisting)
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Validate returns true if the form is valid, or false otherwise.
-                      if (_formKey.currentState!.validate()) {
-                        var msg =
-                            MyLocalizations.of(context)!.tr("ticket_created");
-                        try {
-                          if (isExisting) {
-                            await widget.crud.Update(widget.ticket);
-                            await _imgToServer(widget.ticket.id);
-                          } else {
-                            var t = await widget.crud.Create(widget.ticket);
-                            await _imgToServer(t.id);
-                          }
-                        } catch (e) {
-                          msg = e.toString();
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(msg)),
-                        );
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(MyLocalizations.of(context)!.tr("submit")),
+                  SizedBox(
+                    width: 140,
+                    height: 50,
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        switchInCurve: Interval(
+                          0.5,
+                          1,
+                          curve: Curves.linear,
+                        ),
+                        switchOutCurve: Interval(
+                          0,
+                          0.5,
+                          curve: Curves.linear,
+                        ).flipped,
+                        duration: Duration(milliseconds: 500),
+                        child: !submitting
+                            ? ElevatedButton(
+                                onPressed: () async {
+                                  submitting = true;
+                                  setState(() {});
+                                  // Validate returns true if the form is valid, or false otherwise.
+                                  if (_formKey.currentState!.validate()) {
+                                    var msg = MyLocalizations.of(context)!
+                                        .tr("ticket_created");
+                                    try {
+                                      if (isExisting) {
+                                        await widget.crud.Update(widget.ticket);
+                                        await _imgToServer(widget.ticket.id);
+                                      } else {
+                                        var t = await widget.crud
+                                            .Create(widget.ticket);
+                                        await _imgToServer(t.id);
+                                      }
+                                    } catch (e) {
+                                      msg = e.toString();
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(msg)),
+                                    );
+                                    Navigator.pop(context);
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(MyLocalizations.of(context)!
+                                      .tr("submit")),
+                                ),
+                              )
+                            : Center(child: CircularProgressIndicator()),
+                      ),
                     ),
                   ),
               ],

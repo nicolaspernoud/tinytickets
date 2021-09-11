@@ -108,7 +108,6 @@ class _TicketsState extends State<Tickets> {
                     Widget child;
                     if (snapshot.hasData) {
                       child = ListView(
-                          key: ValueKey(0), // assign key
                           children: snapshot.data!
                               .where((t) => !t.is_closed || _showClosed)
                               .map((t) => Card(
@@ -132,10 +131,9 @@ class _TicketsState extends State<Tickets> {
                               .toList());
                     } else if (snapshot.hasError) {
                       child = Text(
-                          MyLocalizations.of(context)!.tr("try_new_token"),
-                          key: ValueKey(1));
+                          MyLocalizations.of(context)!.tr("try_new_token"));
                     } else {
-                      child = const CircularProgressIndicator(key: ValueKey(2));
+                      child = const CircularProgressIndicator();
                     }
                     return AnimatedSwitcher(
                       duration: Duration(milliseconds: 300),

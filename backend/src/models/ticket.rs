@@ -231,9 +231,7 @@ async fn delete(db: Db, id: i32, _token: AdminToken<'_>) -> Result<Option<()>> {
                 .execute(conn)
         })
         .await?;
-    let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
-
-    if let Err(e) = fs::remove_file(filename) {
+    if let Err(e) = fs::remove_file(photo_filename(id)) {
         println!("error removing photo with id {}: {}", id, e);
     }
 
@@ -254,9 +252,8 @@ async fn upload(
     id: i32,
 ) -> Result<String, Debug<std::io::Error>> {
     fs::create_dir_all(PHOTOS_PATH)?;
-    let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
+    let filename = photo_filename(id);
     let img_bytes = image.open(10.mebibytes()).into_bytes().await?;
-
     match spawn_blocking(move || image::load_from_memory(&img_bytes)).await {
         Ok(r) => match r {
             Ok(r) => {
@@ -291,8 +288,7 @@ async fn upload(
 
 #[get("/photos/<id>")]
 async fn retrieve(id: i32, _token: UserToken<'_>) -> Result<File, NotFound<String>> {
-    let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
-    match File::open(&filename).await {
+    match File::open(photo_filename(id)).await {
         Ok(f) => Ok(f),
         Err(..) => Err(NotFound("no image available".to_string())),
     }
@@ -300,11 +296,14 @@ async fn retrieve(id: i32, _token: UserToken<'_>) -> Result<File, NotFound<Strin
 
 #[delete("/photos/<id>")]
 async fn delete_photo(id: i32, _token: UserToken<'_>) -> Result<String, NotFound<String>> {
-    let filename = format!("{path}/{id}", path = PHOTOS_PATH, id = id);
-    match spawn_blocking(move || fs::remove_file(&filename)).await {
+    match spawn_blocking(move || fs::remove_file(photo_filename(id))).await {
         Ok(..) => Ok("File deleted".to_string()),
         Err(..) => Err(NotFound("no image available".to_string())),
     }
+}
+
+fn photo_filename(id: i32) -> String {
+    format!("{path}/{id}.jpg", path = PHOTOS_PATH, id = id)
 }
 
 pub fn stage() -> AdHoc {
