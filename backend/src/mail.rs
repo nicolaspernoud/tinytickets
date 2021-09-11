@@ -1,5 +1,7 @@
+use lettre::message::header::{self, To};
+use lettre::message::{Mailbox, Mailboxes};
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::{message::header, Message, SmtpTransport, Transport};
+use lettre::{Address, Message, SmtpTransport, Transport};
 use std::env;
 
 pub fn send_mail(subject: String, body: String) {
@@ -9,26 +11,21 @@ pub fn send_mail(subject: String, body: String) {
     let to = env::var("MAIL_TO").unwrap_or_default();
     let from = env::var("MAIL_FROM").unwrap_or_default();
 
-    /*let mut mailboxes = Mailboxes::new();
+    let mut mailboxes = Mailboxes::new();
     let addresses = to.split(",");
 
     for a in addresses {
-        let address = a.parse::<Address>().unwrap();
+        let address = a
+            .trim()
+            .parse::<Address>()
+            .expect("The MAIL_TO environnement variable is not set properly.");
         mailboxes.push(Mailbox::new(None, address));
     }
 
     let email = Message::builder()
         .from(from.parse().unwrap())
         .reply_to(from.parse().unwrap())
-        .header(header::To(mailboxes))
-        .subject(subject)
-        .body(body)
-        .expect("Could not send email : could not create the message.");*/
-
-    let email = Message::builder()
-        .from(from.parse().unwrap())
-        .reply_to(from.parse().unwrap())
-        .to(to.parse().unwrap())
+        .header(To::from(mailboxes))
         .header(header::ContentType::TEXT_HTML)
         .subject(subject)
         .body(body)

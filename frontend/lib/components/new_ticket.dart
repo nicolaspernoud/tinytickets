@@ -9,6 +9,7 @@ import 'package:tinytickets/models/comment.dart';
 import 'package:tinytickets/models/crud.dart';
 import 'package:tinytickets/models/ticket.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as image;
 
 import '../globals.dart';
 import '../i18n.dart';
@@ -63,12 +64,13 @@ class _NewEditTicketState extends State<NewEditTicket> {
 
   _imgToServer(int id) async {
     var img = await imageBytes;
-    if (imageBytes != null && img != null) {
+    final capturedImage = image.decodeImage(img!);
+    final orientedImage = image.bakeOrientation(capturedImage!);
+    if (imageBytes != null) {
       final response = await http.post(
-        Uri.parse('$hostname/tickets/photos/${id.toString()}'),
-        headers: <String, String>{'X-TOKEN': token},
-        body: img,
-      );
+          Uri.parse('$hostname/tickets/photos/${id.toString()}'),
+          headers: <String, String>{'X-TOKEN': token},
+          body: image.encodeJpg(orientedImage, quality: 80));
       if (response.statusCode != 200) {
         throw Exception(response.body.toString());
       }
@@ -208,8 +210,9 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                   borderRadius: BorderRadius.circular(20.0),
                                   child: Image.memory(
                                     snapshot.data!,
-                                    fit: BoxFit.fill,
-                                    height: 300,
+                                    fit: BoxFit.fitWidth,
+                                    width: MediaQuery.of(context).size.width *
+                                        0.75,
                                   )),
                             ),
                             IconButton(
