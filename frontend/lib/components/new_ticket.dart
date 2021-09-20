@@ -45,6 +45,16 @@ class _NewEditTicketState extends State<NewEditTicket> {
   String hostname = (App().prefs.getString("hostname") ?? "") + "/api";
   String token = App().prefs.getString("token") ?? "";
 
+  double Function(BuildContext) thirdWidth = (BuildContext ctx) {
+    var availableWidth = (MediaQuery.of(ctx).size.width - 32);
+    var baseWidth = availableWidth / 3;
+    if (baseWidth >= 250) {
+      return baseWidth;
+    } else {
+      return availableWidth;
+    }
+  };
+
   @override
   void initState() {
     super.initState();
@@ -176,21 +186,73 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     widget.ticket.title = value;
                   },
                 ),
-                TextFormField(
-                  decoration: new InputDecoration(
-                      labelText: MyLocalizations.of(context)!.tr("creator")),
-                  // The validator receives the text that the user has entered.
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return MyLocalizations.of(context)!
-                          .tr("please_enter_some_text");
-                    }
-                    return null;
-                  },
-                  initialValue: widget.ticket.creator,
-                  onChanged: (value) {
-                    widget.ticket.creator = value;
-                  },
+                Wrap(
+                  children: [
+                    Container(
+                      width: thirdWidth(context),
+                      child: TextFormField(
+                        decoration: new InputDecoration(
+                            labelText:
+                                MyLocalizations.of(context)!.tr("creator")),
+                        // The validator receives the text that the user has entered.
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return MyLocalizations.of(context)!
+                                .tr("please_enter_some_text");
+                          }
+                          return null;
+                        },
+                        initialValue: widget.ticket.creator,
+                        onChanged: (value) {
+                          widget.ticket.creator = value;
+                        },
+                      ),
+                    ),
+                    Container(
+                      width: thirdWidth(context),
+                      child: TextFormField(
+                        decoration: new InputDecoration(
+                            labelText: MyLocalizations.of(context)!
+                                .tr("creator_mail")),
+                        // The validator receives the text that the user has entered.
+                        validator: (value) {
+                          if (value == null ||
+                              value.isEmpty ||
+                              !value.isValidEmail()) {
+                            return MyLocalizations.of(context)!
+                                .tr("please_enter_valid_email");
+                          }
+                          return null;
+                        },
+                        initialValue: widget.ticket.creator_mail,
+                        onChanged: (value) {
+                          widget.ticket.creator_mail = value;
+                        },
+                      ),
+                    ),
+                    Container(
+                      width: thirdWidth(context),
+                      child: TextFormField(
+                        decoration: new InputDecoration(
+                            labelText: MyLocalizations.of(context)!
+                                .tr("creator_phone")),
+                        // The validator receives the text that the user has entered.
+                        validator: (value) {
+                          if (value == null ||
+                              value.isEmpty ||
+                              !value.isValidPhoneNumber()) {
+                            return MyLocalizations.of(context)!
+                                .tr("please_enter_valid_phone_number");
+                          }
+                          return null;
+                        },
+                        initialValue: widget.ticket.creator_phone,
+                        onChanged: (value) {
+                          widget.ticket.creator_phone = value;
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 TextFormField(
                   decoration: new InputDecoration(
@@ -365,10 +427,10 @@ class _NewEditTicketState extends State<NewEditTicket> {
                         child: !submitting
                             ? ElevatedButton(
                                 onPressed: () async {
-                                  submitting = true;
-                                  setState(() {});
                                   // Validate returns true if the form is valid, or false otherwise.
                                   if (_formKey.currentState!.validate()) {
+                                    submitting = true;
+                                    setState(() {});
                                     var msg = MyLocalizations.of(context)!
                                         .tr("ticket_created");
                                     try {
@@ -500,5 +562,19 @@ class _AssetsDropDownState extends State<AssetsDropDown> {
             child: Text(MyLocalizations.of(context)!.tr("no_assets")),
           );
         });
+  }
+}
+
+extension EmailValidator on String {
+  bool isValidEmail() {
+    return RegExp(
+            r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$')
+        .hasMatch(this);
+  }
+}
+
+extension PhoneValidator on String {
+  bool isValidPhoneNumber() {
+    return RegExp(r'[0-9].{6,12}').hasMatch(this);
   }
 }

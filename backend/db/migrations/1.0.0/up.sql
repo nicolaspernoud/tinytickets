@@ -8,6 +8,8 @@ CREATE TABLE tickets (
     asset_id INTEGER NOT NULL,
     title VARCHAR NOT NULL,
     creator VARCHAR NOT NULL,
+    creator_mail VARCHAR NOT NULL,
+    creator_phone VARCHAR NOT NULL,
     description VARCHAR NOT NULL,
     time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_closed BOOLEAN NOT NULL,

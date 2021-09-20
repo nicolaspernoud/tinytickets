@@ -215,6 +215,8 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     let ticket = InTicket {
         title: "test".to_string(),
         creator: "test".to_string(),
+        creator_mail: "test".to_string(),
+        creator_phone: "test".to_string(),
         description: "test".to_string(),
         time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S").unwrap(),
         asset_id: 1,
@@ -254,10 +256,14 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     for i in 1..=N {
         let title = format!("My Ticket - {}", i);
         let creator = format!("My Ticket Creator - {}", i);
+        let creator_mail = format!("My Ticket Creator Mail - {}", i);
+        let creator_phone = format!("My Ticket Creator Tel - {}", i);
         let description = format!("Once upon a time, at {}'o clock...", i);
         let ticket = InTicket {
             title: title.clone(),
             creator: creator.clone(),
+            creator_mail: creator_mail.clone(),
+            creator_phone: creator_phone.clone(),
             description: description.clone(),
             time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S")
                 .unwrap(),
@@ -313,6 +319,8 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             id: i32::try_from(*id).unwrap(),
             title: "patched title".to_string(),
             creator: "patched creator".to_string(),
+            creator_mail: "patched creator mail".to_string(),
+            creator_phone: "patched creator tel".to_string(),
             description: format!("Once upon a time, at {}'o clock...", id),
             time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S")
                 .unwrap(),
@@ -484,6 +492,8 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
     let ticket = InTicket {
         title: "MyTicket".to_string(),
         creator: "MyTicketCreator".to_string(),
+        creator_mail: "MyTicketCreatorMail".to_string(),
+        creator_phone: "MyTicketCreatorTel".to_string(),
         description: "MyDescription".to_string(),
         time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S").unwrap(),
         asset_id: asset_id,

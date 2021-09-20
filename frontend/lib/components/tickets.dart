@@ -155,6 +155,8 @@ class _TicketsState extends State<Tickets> {
                       id: 0,
                       title: "",
                       creator: "",
+                      creator_mail: "",
+                      creator_phone: "",
                       description: "",
                       asset_id: 1,
                       is_closed: false,

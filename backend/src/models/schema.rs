@@ -22,6 +22,8 @@ table! {
         asset_id -> Integer,
         title -> Text,
         creator -> Text,
+        creator_mail -> Text,
+        creator_phone -> Text,
         description -> Text,
         time -> Timestamp,
         is_closed -> Bool,
@@ -31,8 +33,4 @@ table! {
 joinable!(comments -> tickets (ticket_id));
 joinable!(tickets -> assets (asset_id));
 
-allow_tables_to_appear_in_same_query!(
-    assets,
-    comments,
-    tickets,
-);
+allow_tables_to_appear_in_same_query!(assets, comments, tickets,);

@@ -46,6 +46,8 @@ pub struct Ticket {
     pub asset_id: i32,
     pub title: String,
     pub creator: String,
+    pub creator_mail: String,
+    pub creator_phone: String,
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
@@ -57,6 +59,8 @@ pub struct InTicket {
     pub asset_id: i32,
     pub title: String,
     pub creator: String,
+    pub creator_mail: String,
+    pub creator_phone: String,
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
@@ -67,6 +71,8 @@ impl PartialEq<InTicket> for Ticket {
         self.title == other.title
             && self.asset_id == other.asset_id
             && self.creator == other.creator
+            && self.creator_mail == other.creator_mail
+            && self.creator_phone == other.creator_phone
             && self.description == other.description
             && self.time == other.time
     }

@@ -27,6 +27,8 @@ void main() {
           time: DateTime.now(),
           title: "a title",
           creator: "a creator",
+          creator_mail: "a mail",
+          creator_phone: "a tel",
           description: "a description",
           is_closed: false);
       final a1Json = jsonEncode(t1.toJson());
