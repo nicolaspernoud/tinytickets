@@ -33,7 +33,7 @@ class _SettingsState extends State<Settings> {
         body: Center(
             child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
+          child: ListView(
             children: [
               settingsField(),
               if (App().role == Role.admin) ...[
@@ -85,7 +85,7 @@ class _SettingsState extends State<Settings> {
                       return Text('${snapshot.error}');
                     }
                     // By default, show a loading spinner.
-                    return const CircularProgressIndicator();
+                    return Center(child: const CircularProgressIndicator());
                   },
                 )
               ],
