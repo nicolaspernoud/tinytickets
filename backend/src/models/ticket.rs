@@ -1,6 +1,6 @@
 use crate::{
     config::{AdminToken, UserToken},
-    mail::send_mail,
+    mail::Mailer,
     models::{
         asset::Asset,
         comment::Comment,
@@ -97,6 +97,7 @@ async fn create(
     db: Db,
     ticket: Json<InTicket>,
     _token: UserToken<'_>,
+    mut mailer: Mailer,
 ) -> Result<Created<Json<Ticket>>, NotFound<String>> {
     let ticket_value = ticket.clone();
     let asset_id = ticket.asset_id;
@@ -135,7 +136,7 @@ async fn create(
         Ok(t) => {
             let t2 = t.clone();
             spawn_blocking(move || match new_ticket_template(&t2) {
-                Ok(r) => send_mail(r.0, r.1),
+                Ok(r) => mailer.send_mail(r.0, r.1),
                 Err(e) => println!("Handlebars error : {}", e),
             });
             Ok(Created::new("/").body(Json(t)))
@@ -150,14 +151,28 @@ async fn update(
     ticket: Json<Ticket>,
     id: i32,
     _token: AdminToken<'_>,
+    mut mailer: Mailer,
 ) -> Result<Created<Json<Ticket>>> {
-    let ticket_value = ticket.clone();
+    let t1 = ticket.clone();
     db.run(move |conn| {
         diesel::update(tickets::table.filter(tickets::id.eq(id)))
-            .set(ticket_value)
+            .set(t1)
             .execute(conn)
     })
     .await?;
+
+    // If the ticket is closed, send a mail to the creator
+    if ticket.is_closed {
+        match ticket_with_comments(db, ticket.id).await {
+            Ok(t) => {
+                spawn_blocking(move || match closed_ticket_template(&t) {
+                    Ok(r) => mailer.send_mail_to(r.0, r.1, t.ticket.creator_mail),
+                    Err(e) => println!("Handlebars error : {}", e),
+                });
+            }
+            Err(e) => println!("{}", e),
+        }
+    }
 
     Ok(Created::new("/").body(ticket))
 }
@@ -180,7 +195,11 @@ async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Ticket>>> {
 }
 
 #[get("/mail_open")]
-async fn mail_open(db: Db, _token: AdminToken<'_>) -> Result<Json<Vec<Ticket>>> {
+async fn mail_open(
+    db: Db,
+    _token: AdminToken<'_>,
+    mut mailer: Mailer,
+) -> Result<Json<Vec<Ticket>>> {
     let open_tickets: Vec<Ticket> = db
         .run(|conn| {
             tickets::table
@@ -190,7 +209,7 @@ async fn mail_open(db: Db, _token: AdminToken<'_>) -> Result<Json<Vec<Ticket>>> 
         .await?;
     if !open_tickets.is_empty() {
         match open_tickets_template(&open_tickets) {
-            Ok(r) => send_mail(r.0, r.1),
+            Ok(r) => mailer.send_mail(r.0, r.1),
             Err(e) => println!("Handlebars error : {}", e),
         };
     };
@@ -199,33 +218,35 @@ async fn mail_open(db: Db, _token: AdminToken<'_>) -> Result<Json<Vec<Ticket>>> 
 
 #[get("/<id>")]
 async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Result<Json<OutTicket>, NotFound<String>> {
-    match db
-        .run(move |conn| {
-            let t: Result<Ticket, diesel::result::Error> =
-                tickets::table.filter(tickets::id.eq(id)).first(conn);
-            let t = match t {
-                Ok(r) => r,
-                Err(..) => {
-                    return Err(NotFound("Could not get ticket".to_string()));
-                }
-            };
-            let cs = <Comment>::belonging_to(&t).load(conn);
-            let cs = match cs {
-                Ok(r) => r,
-                Err(..) => {
-                    return Err(NotFound("Could not get comments for ticket".to_string()));
-                }
-            };
-            Ok(OutTicket {
-                ticket: t,
-                comments: cs,
-            })
-        })
-        .await
-    {
+    match ticket_with_comments(db, id).await {
         Ok(e) => Ok(Json(e)),
-        Err(e) => Err(e),
+        Err(e) => Err(NotFound(e)),
     }
+}
+
+async fn ticket_with_comments(db: Db, id: i32) -> Result<OutTicket, String> {
+    db.run(move |conn| {
+        let t: Result<Ticket, diesel::result::Error> =
+            tickets::table.filter(tickets::id.eq(id)).first(conn);
+        let t = match t {
+            Ok(r) => r,
+            Err(..) => {
+                return Err("Could not get ticket".to_string());
+            }
+        };
+        let cs = <Comment>::belonging_to(&t).load(conn);
+        let cs = match cs {
+            Ok(r) => r,
+            Err(..) => {
+                return Err("Could not get comments for ticket".to_string());
+            }
+        };
+        Ok(OutTicket {
+            ticket: t,
+            comments: cs,
+        })
+    })
+    .await
 }
 
 #[delete("/<id>")]
@@ -342,6 +363,21 @@ fn new_ticket_template(t: &Ticket) -> Result<(String, String), RenderError> {
 
     match handlebars.render("new_ticket_subject", &t) {
         Ok(subject) => match handlebars.render("new_ticket_body", &t) {
+            Ok(body) => Ok((subject, body)),
+            Err(e) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+fn closed_ticket_template(t: &OutTicket) -> Result<(String, String), RenderError> {
+    let mut handlebars = Handlebars::new();
+    handlebars
+        .register_templates_directory(".hbs", "templates")
+        .expect("templates directory must exist!");
+
+    match handlebars.render("closed_ticket_subject", &t) {
+        Ok(subject) => match handlebars.render("closed_ticket_body", &t) {
             Ok(body) => Ok((subject, body)),
             Err(e) => Err(e),
         },

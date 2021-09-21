@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::mail::Mailer;
 use crate::models::asset::{Asset, InAsset};
 use crate::models::comment::{Comment, InComment};
 use crate::models::ticket::{InTicket, Ticket};
@@ -325,7 +326,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             time: NaiveDateTime::parse_from_str("2021-08-12T20:00:00", "%Y-%m-%dT%H:%M:%S")
                 .unwrap(),
             asset_id: asset_id,
-            is_closed: false,
+            is_closed: true,
         };
         let response = client
             .patch(format!("{}/{}", base, id))
@@ -655,14 +656,19 @@ fn test_models() {
     env::set_var("USER_TOKEN", "development_user_token");
     // NOTE: If we had more than one test running concurrently that dispatches
     // DB-accessing requests, we'd need transactions or to serialize all tests.
+    let mailer = Mailer::new(true);
     let client = Client::tracked(
         rocket::build()
             .attach(crate::models::stage())
-            .manage(Config::init()),
+            .manage(Config::init())
+            .manage(mailer.clone()),
     )
     .unwrap();
 
     test_assets("/api/assets", &client);
     test_tickets("/api/tickets", &client);
     test_comments("/api/comments", &client);
+    assert!(mailer
+        .print_test_mails()
+        .contains("Ticket created by patched creator: patched title has been closed"));
 }

@@ -1,0 +1,22 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ticket closed</title>
+  </head>
+  <body>
+    <h1>The ticket created by {{creator}}: {{title}}, has been closed.</h1>
+    <p>{{description}}</p>
+    <h1>The ticket was closed with the following comments :</h1>
+
+    {{#each comments}}
+      <p>
+        {{this.creator}}
+        :
+        {{this.content}}
+      </p>
+    {{/each}}
+
+  </body>
+</html>

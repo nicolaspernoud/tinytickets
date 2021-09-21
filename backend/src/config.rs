@@ -1,9 +1,12 @@
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
+
 use std::env;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+
+use crate::mail::Mailer;
 
 fn random_string() -> std::string::String {
     thread_rng()
@@ -94,6 +97,18 @@ impl<'r> FromRequest<'r> for UserToken<'r> {
             None => Outcome::Failure((Status::Unauthorized, TokenError::Missing)),
             Some(token) if is_valid(token, req) => Outcome::Success(UserToken(token)),
             Some(_) => Outcome::Failure((Status::Forbidden, TokenError::Invalid)),
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Mailer {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, ()> {
+        match request.rocket().state::<Mailer>() {
+            Some(mailer) => Outcome::Success(mailer.clone()),
+            None => rocket::outcome::Outcome::Forward(()),
         }
     }
 }

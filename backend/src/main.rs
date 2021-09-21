@@ -23,6 +23,7 @@ mod mail;
 fn rocket() -> _ {
     rocket::build()
         .manage(config::Config::init())
+        .manage(mail::Mailer::new(false))
         .attach(fairings::Cors)
         .mount("/", FileServer::from("web"))
         .attach(models::stage())
