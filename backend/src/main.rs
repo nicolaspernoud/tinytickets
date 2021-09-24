@@ -19,6 +19,11 @@ mod config;
 
 mod mail;
 
+#[get("/api/app-title")]
+fn get_app_title() -> String {
+    std::env::var("APP_TITLE").unwrap_or_else(|_| String::from("Tiny Tickets"))
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
@@ -26,5 +31,6 @@ fn rocket() -> _ {
         .manage(mail::Mailer::new(false))
         .attach(fairings::Cors)
         .mount("/", FileServer::from("web"))
+        .mount("/", routes![get_app_title])
         .attach(models::stage())
 }

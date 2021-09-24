@@ -36,3 +36,4 @@ The rights are defined by tokens, set as environment variables.
 | MAIL_PASSWORD        | mail password                                   | empty (mails will not be send)    |
 | MAIL_FROM            | mail address the mails will be sent from        | empty (mails will not be send)    |
 | MAIL_TO              | mail address the mails will be sent to          | empty (mails will not be send)    |
+| APP_TITLE            | title displayed on top of the app               | Tiny Tickets                      |

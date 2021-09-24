@@ -37,11 +37,13 @@ class _SettingsState extends State<Settings> {
             children: [
               settingsField(),
               if (App().role == Role.admin) ...[
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Text(
-                    MyLocalizations.of(context)!.tr("assets"),
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      MyLocalizations.of(context)!.tr("assets"),
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 FutureBuilder<List<Asset>>(

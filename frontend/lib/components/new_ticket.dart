@@ -170,6 +170,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                       padding: const EdgeInsets.all(16.0),
                       child: Text(formatTime(widget.ticket.time)),
                     )),
+                SizedBox(height: 10),
                 TextFormField(
                   decoration: new InputDecoration(
                       labelText: MyLocalizations.of(context)!.tr("title")),
@@ -186,6 +187,31 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     widget.ticket.title = value;
                   },
                 ),
+                SizedBox(height: 10),
+                AssetsDropDown(
+                  crud: widget.assetsCrud,
+                  callback: (val) => widget.ticket.asset_id = val,
+                  initialIndex: widget.ticket.asset_id,
+                ),
+                SizedBox(height: 10),
+                TextFormField(
+                  decoration: new InputDecoration(
+                      labelText:
+                          MyLocalizations.of(context)!.tr("description")),
+                  // The validator receives the text that the user has entered.
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return MyLocalizations.of(context)!
+                          .tr("please_enter_some_text");
+                    }
+                    return null;
+                  },
+                  initialValue: widget.ticket.description,
+                  onChanged: (value) {
+                    widget.ticket.description = value;
+                  },
+                ),
+                SizedBox(height: 20),
                 Wrap(
                   children: [
                     Container(
@@ -254,23 +280,6 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     ),
                   ],
                 ),
-                TextFormField(
-                  decoration: new InputDecoration(
-                      labelText:
-                          MyLocalizations.of(context)!.tr("description")),
-                  // The validator receives the text that the user has entered.
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return MyLocalizations.of(context)!
-                          .tr("please_enter_some_text");
-                    }
-                    return null;
-                  },
-                  initialValue: widget.ticket.description,
-                  onChanged: (value) {
-                    widget.ticket.description = value;
-                  },
-                ),
                 SizedBox(height: 20),
                 Center(
                   child: FutureBuilder<Uint8List?>(
@@ -311,11 +320,6 @@ class _NewEditTicketState extends State<NewEditTicket> {
                           icon: Icon(Icons.camera_alt));
                     },
                   ),
-                ),
-                AssetsDropDown(
-                  crud: widget.assetsCrud,
-                  callback: (val) => widget.ticket.asset_id = val,
-                  initialIndex: widget.ticket.asset_id,
                 ),
                 if (isExisting) ...[
                   SizedBox(height: 20),

@@ -3,6 +3,7 @@ import 'package:tinytickets/models/asset.dart';
 import 'package:tinytickets/models/comment.dart';
 import 'package:tinytickets/models/crud.dart';
 import 'package:tinytickets/models/ticket.dart';
+import 'package:http/http.dart' as http;
 
 import '../globals.dart';
 import '../i18n.dart';
@@ -23,11 +24,18 @@ class Tickets extends StatefulWidget {
 
 class _TicketsState extends State<Tickets> {
   late Future<List<Ticket>> tickets;
+  late Future<String> app_title;
   bool _showClosed = false;
 
   @override
   void initState() {
     super.initState();
+    app_title = http
+        .get(
+          Uri.parse(
+              (App().prefs.getString("hostname") ?? "") + "/api/app-title"),
+        )
+        .then((value) => value.statusCode == 200 ? value.body : "Tiny Tickets");
     if (App().role != Role.unknown) {
       tickets = widget.crud.ReadAll();
     } else {
@@ -80,8 +88,23 @@ class _TicketsState extends State<Tickets> {
               ),
               const SizedBox(width: 8),
               Container(
-                  child: Text("${widget.title}",
-                      style: TextStyle(fontWeight: FontWeight.bold)))
+                  child: FutureBuilder<String>(
+                future: app_title,
+                builder: (context, snapshot) {
+                  Widget child;
+                  if (snapshot.hasData) {
+                    child = Text(snapshot.data!,
+                        style: TextStyle(fontWeight: FontWeight.bold));
+                  } else {
+                    child = Text("Tiny Tickets",
+                        style: TextStyle(fontWeight: FontWeight.bold));
+                  }
+                  return AnimatedSwitcher(
+                    duration: Duration(milliseconds: 1000),
+                    child: child,
+                  );
+                },
+              )),
             ],
           ),
           actions: [
@@ -163,6 +186,7 @@ class _TicketsState extends State<Tickets> {
                       time: DateTime.now(),
                     ));
                   }),
+              Text(MyLocalizations.of(context)!.tr("create_ticket")),
               Expanded(
                 child: Container(
                   height: 50,
