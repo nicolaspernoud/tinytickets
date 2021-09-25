@@ -94,14 +94,26 @@ class _TicketsState extends State<Tickets> {
                   Widget child;
                   if (snapshot.hasData) {
                     child = Text(snapshot.data!,
-                        style: TextStyle(fontWeight: FontWeight.bold));
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                        key: ValueKey<int>(1));
                   } else {
                     child = Text("Tiny Tickets",
-                        style: TextStyle(fontWeight: FontWeight.bold));
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                        key: ValueKey<int>(0));
                   }
                   return AnimatedSwitcher(
-                    duration: Duration(milliseconds: 1000),
+                    duration: Duration(milliseconds: 1500),
                     child: child,
+                    switchInCurve: Interval(
+                      0.5,
+                      1,
+                      curve: Curves.linear,
+                    ),
+                    switchOutCurve: Interval(
+                      0,
+                      0.5,
+                      curve: Curves.linear,
+                    ).flipped,
                   );
                 },
               )),
