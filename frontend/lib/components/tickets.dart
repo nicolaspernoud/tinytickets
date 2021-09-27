@@ -155,11 +155,16 @@ class _TicketsState extends State<Tickets> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: <Widget>[
                                         ListTile(
-                                            leading: Icon(Icons.assignment),
+                                            leading: Icon(t.is_closed
+                                                ? Icons.assignment_turned_in
+                                                : Icons.assignment),
                                             title: Text(formatTime(t.time) +
                                                 " - " +
                                                 t.title),
-                                            subtitle: Text(t.description))
+                                            subtitle: Text(
+                                              t.description,
+                                              maxLines: 2,
+                                            ))
                                       ],
                                     ),
                                   )))

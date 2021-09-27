@@ -34,11 +34,27 @@ pub struct Asset {
     pub description: String,
 }
 
+impl Asset {
+    fn trim(mut self) -> Self {
+        self.title = self.title.trim().to_string();
+        self.description = self.description.trim().to_string();
+        self
+    }
+}
+
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
 #[table_name = "assets"]
 pub struct InAsset {
     pub title: String,
     pub description: String,
+}
+
+impl InAsset {
+    fn trim(mut self) -> Self {
+        self.title = self.title.trim().to_string();
+        self.description = self.description.trim().to_string();
+        self
+    }
 }
 
 impl PartialEq<InAsset> for Asset {
@@ -61,7 +77,7 @@ async fn create(
     let asset_value = asset.clone();
     db.run(move |conn| {
         diesel::insert_into(assets::table)
-            .values(asset_value)
+            .values(asset_value.trim())
             .execute(conn)
     })
     .await?;
@@ -79,7 +95,7 @@ async fn update(
     let asset_value = asset.clone();
     db.run(move |conn| {
         diesel::update(assets::table.filter(assets::id.eq(id)))
-            .set(asset_value)
+            .set(asset_value.trim())
             .execute(conn)
     })
     .await?;

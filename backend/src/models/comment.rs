@@ -37,6 +37,14 @@ pub struct Comment {
     pub content: String,
 }
 
+impl Comment {
+    fn trim(mut self) -> Self {
+        self.creator = self.creator.trim().to_string();
+        self.content = self.content.trim().to_string();
+        self
+    }
+}
+
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
 #[table_name = "comments"]
 pub struct InComment {
@@ -44,6 +52,14 @@ pub struct InComment {
     pub time: chrono::NaiveDateTime,
     pub creator: String,
     pub content: String,
+}
+
+impl InComment {
+    fn trim(mut self) -> Self {
+        self.creator = self.creator.trim().to_string();
+        self.content = self.content.trim().to_string();
+        self
+    }
 }
 
 impl PartialEq<InComment> for Comment {
@@ -84,7 +100,7 @@ async fn create(
     match db
         .run(move |conn| {
             diesel::insert_into(comments::table)
-                .values(comment_value)
+                .values(comment_value.trim())
                 .execute(conn)
         })
         .await
@@ -104,7 +120,7 @@ async fn update(
     let comment_value = comment.clone();
     db.run(move |conn| {
         diesel::update(comments::table.filter(comments::id.eq(id)))
-            .set(comment_value)
+            .set(comment_value.trim())
             .execute(conn)
     })
     .await?;

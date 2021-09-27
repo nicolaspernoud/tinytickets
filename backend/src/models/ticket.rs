@@ -53,6 +53,17 @@ pub struct Ticket {
     pub is_closed: bool,
 }
 
+impl Ticket {
+    fn trim(mut self) -> Self {
+        self.title = self.title.trim().to_string();
+        self.creator = self.creator.trim().to_string();
+        self.creator_mail = self.creator_mail.trim().to_string();
+        self.creator_phone = self.creator_phone.trim().to_string();
+        self.description = self.description.trim().to_string();
+        self
+    }
+}
+
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
 #[table_name = "tickets"]
 pub struct InTicket {
@@ -64,6 +75,17 @@ pub struct InTicket {
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
+}
+
+impl InTicket {
+    fn trim(mut self) -> Self {
+        self.title = self.title.trim().to_string();
+        self.creator = self.creator.trim().to_string();
+        self.creator_mail = self.creator_mail.trim().to_string();
+        self.creator_phone = self.creator_phone.trim().to_string();
+        self.description = self.description.trim().to_string();
+        self
+    }
 }
 
 impl PartialEq<InTicket> for Ticket {
@@ -117,7 +139,7 @@ async fn create(
     match db
         .run(move |conn| {
             if let Err(_err) = diesel::insert_into(tickets::table)
-                .values(ticket_value)
+                .values(ticket_value.trim())
                 .execute(conn)
             {
                 return Err(NotFound("Could not create ticket".to_string()));
@@ -156,7 +178,7 @@ async fn update(
     let t1 = ticket.clone();
     db.run(move |conn| {
         diesel::update(tickets::table.filter(tickets::id.eq(id)))
-            .set(t1)
+            .set(t1.trim())
             .execute(conn)
     })
     .await?;

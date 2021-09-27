@@ -48,6 +48,8 @@ class _NewEditCommentState extends State<NewEditComment> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   TextFormField(
+                    readOnly: widget.comment.id > 0 && App().role != Role.admin,
+                    maxLength: 75,
                     initialValue: widget.comment.creator,
                     decoration: new InputDecoration(
                         labelText: MyLocalizations.of(context)!.tr("creator")),
@@ -64,6 +66,8 @@ class _NewEditCommentState extends State<NewEditComment> {
                     },
                   ),
                   TextFormField(
+                    readOnly: widget.comment.id > 0 && App().role != Role.admin,
+                    maxLines: 3,
                     initialValue: widget.comment.content,
                     decoration: new InputDecoration(
                         labelText: MyLocalizations.of(context)!.tr("content")),

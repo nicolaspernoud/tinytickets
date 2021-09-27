@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tinytickets/components/tickets.dart';
 import 'package:tinytickets/models/asset.dart';
@@ -172,6 +173,8 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     )),
                 SizedBox(height: 10),
                 TextFormField(
+                  readOnly: App().role != Role.admin && isExisting,
+                  maxLength: 75,
                   decoration: new InputDecoration(
                       labelText: MyLocalizations.of(context)!.tr("title")),
                   // The validator receives the text that the user has entered.
@@ -195,6 +198,8 @@ class _NewEditTicketState extends State<NewEditTicket> {
                 ),
                 SizedBox(height: 10),
                 TextFormField(
+                  readOnly: App().role != Role.admin && isExisting,
+                  maxLines: 3,
                   decoration: new InputDecoration(
                       labelText:
                           MyLocalizations.of(context)!.tr("description")),
@@ -217,6 +222,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     Container(
                       width: thirdWidth(context),
                       child: TextFormField(
+                        readOnly: App().role != Role.admin && isExisting,
                         decoration: new InputDecoration(
                             labelText:
                                 MyLocalizations.of(context)!.tr("creator")),
@@ -237,6 +243,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     Container(
                       width: thirdWidth(context),
                       child: TextFormField(
+                        readOnly: App().role != Role.admin && isExisting,
                         decoration: new InputDecoration(
                             labelText: MyLocalizations.of(context)!
                                 .tr("creator_mail")),
@@ -259,6 +266,11 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     Container(
                       width: thirdWidth(context),
                       child: TextFormField(
+                        readOnly: App().role != Role.admin && isExisting,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: <TextInputFormatter>[
+                          FilteringTextInputFormatter.allow(intOnly)
+                        ],
                         decoration: new InputDecoration(
                             labelText: MyLocalizations.of(context)!
                                 .tr("creator_phone")),
@@ -281,47 +293,48 @@ class _NewEditTicketState extends State<NewEditTicket> {
                   ],
                 ),
                 SizedBox(height: 20),
-                Center(
-                  child: FutureBuilder<Uint8List?>(
-                    future: imageBytes,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data != null) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            InkWell(
-                              onTap: () {
-                                _imgFromCamera();
-                              },
-                              child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(20.0),
-                                  child: Image.memory(
-                                    snapshot.data!,
-                                    fit: BoxFit.fitWidth,
-                                    width: MediaQuery.of(context).size.width *
-                                        0.75,
-                                  )),
-                            ),
-                            IconButton(
-                                onPressed: () {
-                                  imageBytes = Future.value(null);
-                                  setState(() {});
+                if (App().role == Role.admin || !isExisting)
+                  Center(
+                    child: FutureBuilder<Uint8List?>(
+                      future: imageBytes,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  _imgFromCamera();
                                 },
-                                icon: Icon(Icons.clear))
-                          ],
-                        );
-                      } else if (snapshot.hasError) {
-                        return Text('${snapshot.error}');
-                      }
-                      return IconButton(
-                          onPressed: () {
-                            _imgFromCamera();
-                          },
-                          icon: Icon(Icons.camera_alt));
-                    },
+                                child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(20.0),
+                                    child: Image.memory(
+                                      snapshot.data!,
+                                      fit: BoxFit.fitWidth,
+                                      width: MediaQuery.of(context).size.width *
+                                          0.75,
+                                    )),
+                              ),
+                              IconButton(
+                                  onPressed: () {
+                                    imageBytes = Future.value(null);
+                                    setState(() {});
+                                  },
+                                  icon: Icon(Icons.clear))
+                            ],
+                          );
+                        } else if (snapshot.hasError) {
+                          return Text('${snapshot.error}');
+                        }
+                        return IconButton(
+                            onPressed: () {
+                              _imgFromCamera();
+                            },
+                            icon: Icon(Icons.camera_alt));
+                      },
+                    ),
                   ),
-                ),
-                if (isExisting) ...[
+                if (isExisting && App().role == Role.admin) ...[
                   SizedBox(height: 20),
                   Row(
                     children: [
@@ -577,8 +590,10 @@ extension EmailValidator on String {
   }
 }
 
+final intOnly = RegExp(r'^[0-9]*$');
+
 extension PhoneValidator on String {
   bool isValidPhoneNumber() {
-    return RegExp(r'[0-9].{6,12}').hasMatch(this);
+    return RegExp(r'^[0-9]{6,12}$').hasMatch(this);
   }
 }
