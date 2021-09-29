@@ -27,13 +27,14 @@ The rights are defined by tokens, set as environment variables.
 
 ## Environment variables
 
-| Environment Variable | Usage                                           | Default value                     |
-| -------------------- | ----------------------------------------------- | --------------------------------- |
-| USER_TOKEN           | API token for users                             | random value (printed at startup) |
-| ADMIN_TOKEN          | API token for admins                            | random value (printed at startup) |
-| MAIL_SERVER          | hostname of mail server for mail notifications  | empty (mails will not be send)    |
-| MAIL_USER            | mail user for authenticating on the mail server | empty (mails will not be send)    |
-| MAIL_PASSWORD        | mail password                                   | empty (mails will not be send)    |
-| MAIL_FROM            | mail address the mails will be sent from        | empty (mails will not be send)    |
-| MAIL_TO              | mail address the mails will be sent to          | empty (mails will not be send)    |
-| APP_TITLE            | title displayed on top of the app               | Tiny Tickets                      |
+| Environment Variable | Usage                                                 | Default value                     |
+| -------------------- | ----------------------------------------------------- | --------------------------------- |
+| USER_TOKEN           | API token for users                                   | random value (printed at startup) |
+| ADMIN_TOKEN          | API token for admins                                  | random value (printed at startup) |
+| MAIL_SERVER          | hostname of mail server for mail notifications        | empty (mails will not be send)    |
+| MAIL_USER            | mail user for authenticating on the mail server       | empty (mails will not be send)    |
+| MAIL_PASSWORD        | mail password                                         | empty (mails will not be send)    |
+| MAIL_FROM            | mail address the mails will be sent from              | empty (mails will not be send)    |
+| TICKET_MAIL_TO       | mail address the mails on new ticket will be sent to  | empty (mails will not be send)    |
+| COMMENT_MAIL_TO      | mail address the mails on new comment will be sent to | empty (mails will not be send)    |
+| APP_TITLE            | title displayed on top of the app                     | Tiny Tickets                      |

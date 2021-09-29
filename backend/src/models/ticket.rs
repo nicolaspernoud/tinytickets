@@ -1,5 +1,5 @@
 use crate::{
-    config::{AdminToken, UserToken},
+    config::{AdminToken, Config, UserToken},
     mail::Mailer,
     models::{
         asset::Asset,
@@ -120,6 +120,7 @@ async fn create(
     ticket: Json<InTicket>,
     _token: UserToken<'_>,
     mut mailer: Mailer,
+    config: Config,
 ) -> Result<Created<Json<Ticket>>, NotFound<String>> {
     let ticket_value = ticket.clone();
     let asset_id = ticket.asset_id;
@@ -158,7 +159,7 @@ async fn create(
         Ok(t) => {
             let t2 = t.clone();
             spawn_blocking(move || match new_ticket_template(&t2) {
-                Ok(r) => mailer.send_mail(r.0, r.1),
+                Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
                 Err(e) => println!("Handlebars error : {}", e),
             });
             Ok(Created::new("/").body(Json(t)))
@@ -221,6 +222,7 @@ async fn mail_open(
     db: Db,
     _token: AdminToken<'_>,
     mut mailer: Mailer,
+    config: Config,
 ) -> Result<Json<Vec<Ticket>>> {
     let open_tickets: Vec<Ticket> = db
         .run(|conn| {
@@ -231,7 +233,7 @@ async fn mail_open(
         .await?;
     if !open_tickets.is_empty() {
         match open_tickets_template(&open_tickets) {
-            Ok(r) => mailer.send_mail(r.0, r.1),
+            Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
             Err(e) => println!("Handlebars error : {}", e),
         };
     };

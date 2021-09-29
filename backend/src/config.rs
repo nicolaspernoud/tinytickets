@@ -16,9 +16,12 @@ fn random_string() -> std::string::String {
         .collect()
 }
 
+#[derive(Clone)]
 pub struct Config {
     admin_token: String,
     user_token: String,
+    pub ticket_mail_to: String,
+    pub comment_mail_to: String,
 }
 
 impl Config {
@@ -42,6 +45,8 @@ impl Config {
                     user_t.unwrap()
                 }
             ),
+            ticket_mail_to: env::var("TICKET_MAIL_TO").unwrap_or_default(),
+            comment_mail_to: env::var("TICKET_MAIL_TO").unwrap_or_default(),
         };
         println!("Admin token is: {}", config.admin_token);
         println!("User token is: {}", config.user_token);
@@ -108,6 +113,17 @@ impl<'r> FromRequest<'r> for Mailer {
     async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, ()> {
         match request.rocket().state::<Mailer>() {
             Some(mailer) => Outcome::Success(mailer.clone()),
+            None => rocket::outcome::Outcome::Forward(()),
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Config {
+    type Error = ();
+    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, ()> {
+        match request.rocket().state::<Config>() {
+            Some(config) => Outcome::Success(config.clone()),
             None => rocket::outcome::Outcome::Forward(()),
         }
     }

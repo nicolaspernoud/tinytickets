@@ -36,13 +36,6 @@ impl Mailer {
         };
     }
 
-    pub fn send_mail(&mut self, subject: String, body: String) {
-        {
-            let to = env::var("MAIL_TO").unwrap_or_default();
-            &self.send_mail_to(subject, body, to);
-        };
-    }
-
     #[allow(dead_code)]
     pub fn print_test_mails(&self) -> String {
         let mut result: String = "".to_owned();

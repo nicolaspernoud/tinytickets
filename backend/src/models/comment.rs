@@ -1,6 +1,6 @@
 use self::diesel::prelude::*;
 use crate::{
-    config::{AdminToken, UserToken},
+    config::{AdminToken, Config, UserToken},
     models::{
         db::{Db, Result},
         schema::*,
@@ -11,6 +11,7 @@ use rocket::{
     fairing::AdHoc,
     response::status::{Created, NotFound},
     serde::{json::Json, Deserialize, Serialize},
+    tokio::task::spawn_blocking,
 };
 use rocket_sync_db_pools::diesel;
 
@@ -81,6 +82,8 @@ async fn create(
     db: Db,
     comment: Json<InComment>,
     _token: UserToken<'_>,
+    config: Config,
+    mut mailer: crate::mail::Mailer,
 ) -> Result<Created<Json<InComment>>, NotFound<String>> {
     let comment_value = comment.clone();
     let ticket_id = comment.ticket_id;
@@ -105,7 +108,15 @@ async fn create(
         })
         .await
     {
-        Ok(..) => Ok(Created::new("/").body(comment)),
+        Ok(..) => {
+            let c = comment.clone();
+            spawn_blocking(move || match new_comment_template(&c) {
+                Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
+                Err(e) => println!("Handlebars error : {}", e),
+            });
+            Ok(Created::new("/").body(comment))
+        }
+
         Err(..) => Err(NotFound("Could not create comment".to_string())),
     }
 }
@@ -178,4 +189,19 @@ pub fn stage() -> AdHoc {
             routes![options, list, list_all, read, create, update, delete, destroy],
         )
     })
+}
+
+fn new_comment_template(t: &InComment) -> Result<(String, String), handlebars::RenderError> {
+    let mut handlebars = handlebars::Handlebars::new();
+    handlebars
+        .register_templates_directory(".hbs", "templates")
+        .expect("templates directory must exist!");
+
+    match handlebars.render("new_comment_subject", &t) {
+        Ok(subject) => match handlebars.render("new_comment_body", &t) {
+            Ok(body) => Ok((subject, body)),
+            Err(e) => Err(e),
+        },
+        Err(e) => Err(e),
+    }
 }
