@@ -142,53 +142,46 @@ class _TicketsState extends State<Tickets> {
                   builder: (context, snapshot) {
                     Widget child;
                     if (snapshot.hasData) {
+                      var ts = snapshot.data!
+                          .where((t) => !t.is_closed || _showClosed);
                       child = RefreshIndicator(
-                          color: Colors.amberAccent,
-                          onRefresh: () {
-                            tickets = widget.crud.ReadAll();
-                            setState(() {});
-                            return tickets;
+                        color: Colors.amberAccent,
+                        onRefresh: () {
+                          tickets = widget.crud.ReadAll();
+                          setState(() {});
+                          return tickets;
+                        },
+                        child: ListView.builder(
+                          itemBuilder: (ctx, i) {
+                            return Card(
+                                child: InkWell(
+                              splashColor: Colors.amber.withAlpha(30),
+                              onTap: () {
+                                _edit(ts.elementAt(i));
+                              },
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  ListTile(
+                                      leading: Icon(ts.elementAt(i).is_closed
+                                          ? Icons.assignment_turned_in
+                                          : Icons.assignment),
+                                      title: Text(
+                                          formatTime(ts.elementAt(i).time) +
+                                              " - " +
+                                              ts.elementAt(i).title),
+                                      subtitle: Text(
+                                        ts.elementAt(i).description,
+                                        maxLines: 2,
+                                      ))
+                                ],
+                              ),
+                            ));
                           },
-                          child: CustomScrollView(
-                              physics: AlwaysScrollableScrollPhysics(),
-                              slivers: [
-                                SliverFillRemaining(
-                                    hasScrollBody: false,
-                                    child: Column(
-                                        children: snapshot.data!
-                                            .where((t) =>
-                                                !t.is_closed || _showClosed)
-                                            .map((t) => Card(
-                                                    child: InkWell(
-                                                  splashColor:
-                                                      Colors.blue.withAlpha(30),
-                                                  onTap: () {
-                                                    _edit(t);
-                                                  },
-                                                  child: Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: <Widget>[
-                                                      ListTile(
-                                                          leading: Icon(t.is_closed
-                                                              ? Icons
-                                                                  .assignment_turned_in
-                                                              : Icons
-                                                                  .assignment),
-                                                          title: Text(
-                                                              formatTime(
-                                                                      t.time) +
-                                                                  " - " +
-                                                                  t.title),
-                                                          subtitle: Text(
-                                                            t.description,
-                                                            maxLines: 2,
-                                                          ))
-                                                    ],
-                                                  ),
-                                                )))
-                                            .toList()))
-                              ]));
+                          itemCount: ts.length,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                        ),
+                      );
                     } else if (snapshot.hasError) {
                       child = Text(
                           MyLocalizations.of(context)!.tr("try_new_token"));
