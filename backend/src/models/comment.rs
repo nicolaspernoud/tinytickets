@@ -92,32 +92,31 @@ async fn create(
         .run(move |conn| tickets::table.find(ticket_id).get_result::<Ticket>(conn))
         .await
     {
-        Ok(..) => {}
-        Err(..) => {
-            return Err(NotFound(
-                "Cannot create comment related to non existing ticket.".to_string(),
-            ));
-        }
-    }
-    // ...create the comment if so
-    match db
-        .run(move |conn| {
-            diesel::insert_into(comments::table)
-                .values(comment_value.trim())
-                .execute(conn)
-        })
-        .await
-    {
-        Ok(..) => {
-            let c = comment.clone();
-            spawn_blocking(move || match new_comment_template(&c) {
-                Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
-                Err(e) => println!("Handlebars error : {}", e),
-            });
-            Ok(Created::new("/").body(comment))
-        }
+        Ok(ticket) => {
+            // ...create the comment if so
+            match db
+                .run(move |conn| {
+                    diesel::insert_into(comments::table)
+                        .values(comment_value.trim())
+                        .execute(conn)
+                })
+                .await
+            {
+                Ok(..) => {
+                    let c = comment.clone();
+                    spawn_blocking(move || match new_comment_template(&c, &ticket) {
+                        Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
+                        Err(e) => println!("Handlebars error : {}", e),
+                    });
+                    Ok(Created::new("/").body(comment))
+                }
 
-        Err(..) => Err(NotFound("Could not create comment".to_string())),
+                Err(..) => Err(NotFound("Could not create comment".to_string())),
+            }
+        }
+        Err(..) => Err(NotFound(
+            "Cannot create comment related to non existing ticket.".to_string(),
+        )),
     }
 }
 
@@ -191,14 +190,17 @@ pub fn stage() -> AdHoc {
     })
 }
 
-fn new_comment_template(t: &InComment) -> Result<(String, String), handlebars::RenderError> {
+fn new_comment_template(
+    c: &InComment,
+    t: &Ticket,
+) -> Result<(String, String), handlebars::RenderError> {
     let mut handlebars = handlebars::Handlebars::new();
     handlebars
         .register_templates_directory(".hbs", "templates")
         .expect("templates directory must exist!");
 
-    match handlebars.render("new_comment_subject", &t) {
-        Ok(subject) => match handlebars.render("new_comment_body", &t) {
+    match handlebars.render("new_comment_subject", &(c, t)) {
+        Ok(subject) => match handlebars.render("new_comment_body", &(c, t)) {
             Ok(body) => Ok((subject, body)),
             Err(e) => Err(e),
         },

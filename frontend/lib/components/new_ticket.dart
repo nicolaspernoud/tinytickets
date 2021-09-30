@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -558,7 +559,13 @@ class _AssetsDropDownState extends State<AssetsDropDown> {
                   items: snapshot.data!.map((a) {
                     return new DropdownMenuItem<int>(
                       value: a.id,
-                      child: new Text(a.title),
+                      child: SizedBox(
+                        width: max(MediaQuery.of(context).size.width / 2, 150),
+                        child: new Text(
+                          a.title,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -573,7 +580,6 @@ class _AssetsDropDownState extends State<AssetsDropDown> {
           } else if (snapshot.hasError) {
             return Text('${snapshot.error}');
           }
-          // By default, show a loading spinner.
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(MyLocalizations.of(context)!.tr("no_assets")),

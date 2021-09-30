@@ -46,7 +46,7 @@ impl Config {
                 }
             ),
             ticket_mail_to: env::var("TICKET_MAIL_TO").unwrap_or_default(),
-            comment_mail_to: env::var("TICKET_MAIL_TO").unwrap_or_default(),
+            comment_mail_to: env::var("COMMENT_MAIL_TO").unwrap_or_default(),
         };
         println!("Admin token is: {}", config.admin_token);
         println!("User token is: {}", config.user_token);

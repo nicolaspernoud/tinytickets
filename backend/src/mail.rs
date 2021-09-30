@@ -16,20 +16,21 @@ impl Clone for Mailer {
 impl Mailer {
     pub fn new(test_mode: bool) -> Self {
         Mailer(Arc::new(Mutex::new(MailerConfig {
-            test_mode: test_mode,
+            test_mode,
             test_mails: HashSet::new(),
         })))
     }
 
     pub fn send_mail_to(&mut self, subject: String, body: String, to: String) {
         {
-            let ref mut this = self.0.lock().unwrap();
+            let this = &mut self.0.lock().unwrap();
             if this.test_mode {
-                &this.test_mails.insert(Mail {
-                    to: to,
-                    subject: subject,
-                    body: body,
+                this.test_mails.insert(Mail {
+                    to: to.clone(),
+                    subject: subject.clone(),
+                    body: body.clone(),
                 });
+                println!("Test mail to {}, subject: {}, body:{}", to, subject, body);
             } else {
                 send_mail_to(subject, body, to);
             };
@@ -65,7 +66,7 @@ fn send_mail_to(subject: String, body: String, to: String) {
     let from = env::var("MAIL_FROM").unwrap_or_default();
 
     let mut mailboxes = Mailboxes::new();
-    let addresses = to.split(",");
+    let addresses = to.split(',');
 
     for a in addresses {
         let address = a
