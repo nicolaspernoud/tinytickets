@@ -385,11 +385,15 @@ fn new_ticket_template(t: &Ticket) -> Result<(String, String), RenderError> {
         .register_templates_directory(".hbs", "templates")
         .expect("templates directory must exist!");
 
-    match handlebars.render("new_ticket_subject", &t) {
-        Ok(subject) => match handlebars.render("new_ticket_body", &t) {
-            Ok(body) => Ok((subject, body)),
-            Err(e) => Err(e),
-        },
+    match handlebars.render("new_ticket_body", &t) {
+        Ok(body) => {
+            handlebars.register_escape_fn(handlebars::no_escape);
+            let r_subject = handlebars.render("new_ticket_subject", &t);
+            match r_subject {
+                Ok(subject) => Ok((subject, body)),
+                Err(e) => Err(e),
+            }
+        }
         Err(e) => Err(e),
     }
 }
@@ -400,11 +404,15 @@ fn closed_ticket_template(t: &OutTicket) -> Result<(String, String), RenderError
         .register_templates_directory(".hbs", "templates")
         .expect("templates directory must exist!");
 
-    match handlebars.render("closed_ticket_subject", &t) {
-        Ok(subject) => match handlebars.render("closed_ticket_body", &t) {
-            Ok(body) => Ok((subject, body)),
-            Err(e) => Err(e),
-        },
+    match handlebars.render("closed_ticket_body", &t) {
+        Ok(body) => {
+            handlebars.register_escape_fn(handlebars::no_escape);
+            let r_subject = handlebars.render("closed_ticket_subject", &t);
+            match r_subject {
+                Ok(subject) => Ok((subject, body)),
+                Err(e) => Err(e),
+            }
+        }
         Err(e) => Err(e),
     }
 }
@@ -417,11 +425,15 @@ fn open_tickets_template(t: &[Ticket]) -> Result<(String, String), RenderError> 
 
     handlebars.register_helper("formattime", Box::new(formattime));
 
-    match handlebars.render("open_tickets_subject", &t) {
-        Ok(subject) => match handlebars.render("open_tickets_body", &t) {
-            Ok(body) => Ok((subject, body)),
-            Err(e) => Err(e),
-        },
+    match handlebars.render("open_tickets_body", &t) {
+        Ok(body) => {
+            handlebars.register_escape_fn(handlebars::no_escape);
+            let r_subject = handlebars.render("open_tickets_subject", &t);
+            match r_subject {
+                Ok(subject) => Ok((subject, body)),
+                Err(e) => Err(e),
+            }
+        }
         Err(e) => Err(e),
     }
 }
