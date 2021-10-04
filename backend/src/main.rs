@@ -28,7 +28,9 @@ fn get_app_title() -> String {
 fn rocket() -> _ {
     rocket::build()
         .manage(config::Config::init())
-        .manage(mail::Mailer::new(false))
+        .manage(mail::Mailer::new(
+            std::env::var("TEST_MODE").unwrap_or_default() == "true",
+        ))
         .attach(fairings::Cors)
         .mount("/", FileServer::from("web"))
         .mount("/", routes![get_app_title])

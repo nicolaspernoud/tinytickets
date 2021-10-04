@@ -129,42 +129,43 @@ async fn create(
         .run(move |conn| assets::table.find(asset_id).get_result::<Asset>(conn))
         .await
     {
-        Ok(..) => {}
+        Ok(asset) => {
+            // ...create the ticket if so, and return the created ticket
+            match db
+                .run(move |conn| {
+                    if let Err(_err) = diesel::insert_into(tickets::table)
+                        .values(ticket_value.trim())
+                        .execute(conn)
+                    {
+                        return Err(NotFound("Could not create ticket".to_string()));
+                    };
+
+                    match tickets::table
+                        .order(tickets::id.desc())
+                        .first::<Ticket>(conn)
+                    {
+                        Ok(r) => Ok(r),
+                        Err(..) => Err(NotFound("Could not find ticket id".to_string())),
+                    }
+                })
+                .await
+            {
+                Ok(t) => {
+                    let t2 = t.clone();
+                    spawn_blocking(move || match template((asset, &t2), "new_ticket") {
+                        Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
+                        Err(e) => println!("Handlebars error : {}", e),
+                    });
+                    Ok(Created::new("/").body(Json(t)))
+                }
+                Err(e) => Err(e),
+            }
+        }
         Err(..) => {
             return Err(NotFound(
                 "Cannot create ticket related to non existing asset.".to_string(),
             ));
         }
-    }
-    // ...create the ticket if so, and return the created ticket
-    match db
-        .run(move |conn| {
-            if let Err(_err) = diesel::insert_into(tickets::table)
-                .values(ticket_value.trim())
-                .execute(conn)
-            {
-                return Err(NotFound("Could not create ticket".to_string()));
-            };
-
-            match tickets::table
-                .order(tickets::id.desc())
-                .first::<Ticket>(conn)
-            {
-                Ok(r) => Ok(r),
-                Err(..) => Err(NotFound("Could not find ticket id".to_string())),
-            }
-        })
-        .await
-    {
-        Ok(t) => {
-            let t2 = t.clone();
-            spawn_blocking(move || match new_ticket_template(&t2) {
-                Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
-                Err(e) => println!("Handlebars error : {}", e),
-            });
-            Ok(Created::new("/").body(Json(t)))
-        }
-        Err(e) => Err(e),
     }
 }
 
@@ -188,7 +189,7 @@ async fn update(
     if ticket.is_closed {
         match ticket_with_comments(db, ticket.id).await {
             Ok(t) => {
-                spawn_blocking(move || match closed_ticket_template(&t) {
+                spawn_blocking(move || match template(&t, "closed_ticket") {
                     Ok(r) => mailer.send_mail_to(r.0, r.1, t.ticket.creator_mail),
                     Err(e) => println!("Handlebars error : {}", e),
                 });
@@ -232,7 +233,7 @@ async fn mail_open(
         })
         .await?;
     if !open_tickets.is_empty() {
-        match open_tickets_template(&open_tickets) {
+        match template(&open_tickets, "open_tickets") {
             Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
             Err(e) => println!("Handlebars error : {}", e),
         };
@@ -379,84 +380,49 @@ pub fn stage() -> AdHoc {
     })
 }
 
-fn new_ticket_template(t: &Ticket) -> Result<(String, String), RenderError> {
+pub fn template<T>(o: T, template: &str) -> Result<(String, String), RenderError>
+where
+    T: Serialize,
+{
     let mut handlebars = Handlebars::new();
     handlebars
         .register_templates_directory(".hbs", "templates")
         .expect("templates directory must exist!");
 
-    match handlebars.render("new_ticket_body", &t) {
-        Ok(body) => {
-            handlebars.register_escape_fn(handlebars::no_escape);
-            let r_subject = handlebars.render("new_ticket_subject", &t);
-            match r_subject {
-                Ok(subject) => Ok((subject, body)),
-                Err(e) => Err(e),
+    fn formattime(
+        h: &Helper,
+        _: &Handlebars,
+        _: &Context,
+        _rc: &mut RenderContext,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let param = h.param(0).unwrap();
+        let value = param.value().clone();
+        let t: Result<Ticket, serde_json::Error> = serde_json::from_value(value);
+        match t {
+            Ok(t) => {
+                let time = t.time.format("%Y-%m-%d").to_string();
+                out.write(&time)?;
+                Ok(())
+            }
+            Err(..) => {
+                out.write("[NOT A TICKET : CANNOT GET TIME]")?;
+                Ok(())
             }
         }
-        Err(e) => Err(e),
     }
-}
-
-fn closed_ticket_template(t: &OutTicket) -> Result<(String, String), RenderError> {
-    let mut handlebars = Handlebars::new();
-    handlebars
-        .register_templates_directory(".hbs", "templates")
-        .expect("templates directory must exist!");
-
-    match handlebars.render("closed_ticket_body", &t) {
-        Ok(body) => {
-            handlebars.register_escape_fn(handlebars::no_escape);
-            let r_subject = handlebars.render("closed_ticket_subject", &t);
-            match r_subject {
-                Ok(subject) => Ok((subject, body)),
-                Err(e) => Err(e),
-            }
-        }
-        Err(e) => Err(e),
-    }
-}
-
-fn open_tickets_template(t: &[Ticket]) -> Result<(String, String), RenderError> {
-    let mut handlebars = Handlebars::new();
-    handlebars
-        .register_templates_directory(".hbs", "templates")
-        .expect("templates directory must exist!");
 
     handlebars.register_helper("formattime", Box::new(formattime));
 
-    match handlebars.render("open_tickets_body", &t) {
+    match handlebars.render(format!("{}{}", template, "_body").as_str(), &o) {
         Ok(body) => {
             handlebars.register_escape_fn(handlebars::no_escape);
-            let r_subject = handlebars.render("open_tickets_subject", &t);
+            let r_subject = handlebars.render(format!("{}{}", template, "_subject").as_str(), &o);
             match r_subject {
                 Ok(subject) => Ok((subject, body)),
                 Err(e) => Err(e),
             }
         }
         Err(e) => Err(e),
-    }
-}
-
-fn formattime(
-    h: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _rc: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let param = h.param(0).unwrap();
-    let value = param.value().clone();
-    let t: Result<Ticket, serde_json::Error> = serde_json::from_value(value);
-    match t {
-        Ok(t) => {
-            let time = t.time.format("%Y-%m-%d").to_string();
-            out.write(&time)?;
-            Ok(())
-        }
-        Err(..) => {
-            out.write("[NOT A TICKET : CANNOT GET TIME]")?;
-            Ok(())
-        }
     }
 }

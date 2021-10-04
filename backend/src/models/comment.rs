@@ -104,9 +104,11 @@ async fn create(
             {
                 Ok(..) => {
                     let c = comment.clone();
-                    spawn_blocking(move || match new_comment_template(&c, &ticket) {
-                        Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
-                        Err(e) => println!("Handlebars error : {}", e),
+                    spawn_blocking(move || {
+                        match crate::models::ticket::template((&c, &ticket), "new_comment") {
+                            Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
+                            Err(e) => println!("Handlebars error : {}", e),
+                        }
                     });
                     Ok(Created::new("/").body(comment))
                 }
@@ -188,26 +190,4 @@ pub fn stage() -> AdHoc {
             routes![options, list, list_all, read, create, update, delete, destroy],
         )
     })
-}
-
-fn new_comment_template(
-    c: &InComment,
-    t: &Ticket,
-) -> Result<(String, String), handlebars::RenderError> {
-    let mut handlebars = handlebars::Handlebars::new();
-    handlebars
-        .register_templates_directory(".hbs", "templates")
-        .expect("templates directory must exist!");
-
-    match handlebars.render("new_comment_body", &(c, t)) {
-        Ok(body) => {
-            handlebars.register_escape_fn(handlebars::no_escape);
-            let r_subject = handlebars.render("new_comment_subject", &(c, t));
-            match r_subject {
-                Ok(subject) => Ok((subject, body)),
-                Err(e) => Err(e),
-            }
-        }
-        Err(e) => Err(e),
-    }
 }

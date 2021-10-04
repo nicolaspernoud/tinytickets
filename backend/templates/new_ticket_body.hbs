@@ -6,7 +6,11 @@
     <title>New ticket created</title>
   </head>
   <body>
-    <h1>New ticket created by {{creator}}: {{title}}</h1>
-    <p>{{description}}</p>
+    <h1>New ticket created by
+      {{1.creator}}:
+      {{1.title}}
+      for asset
+      {{0.title}}</h1>
+    <p>{{1.description}}</p>
   </body>
 </html>
