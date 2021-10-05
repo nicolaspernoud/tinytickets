@@ -294,47 +294,48 @@ class _NewEditTicketState extends State<NewEditTicket> {
                   ],
                 ),
                 SizedBox(height: 20),
-                if (App().role == Role.admin || !isExisting)
-                  Center(
-                    child: FutureBuilder<Uint8List?>(
-                      future: imageBytes,
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData && snapshot.data != null) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              InkWell(
-                                onTap: () {
+                Center(
+                  child: FutureBuilder<Uint8List?>(
+                    future: imageBytes,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data != null) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                if (App().role == Role.admin || !isExisting)
                                   _imgFromCamera();
-                                },
-                                child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(20.0),
-                                    child: Image.memory(
-                                      snapshot.data!,
-                                      fit: BoxFit.fitWidth,
-                                      width: MediaQuery.of(context).size.width *
-                                          0.75,
-                                    )),
-                              ),
+                              },
+                              child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20.0),
+                                  child: Image.memory(
+                                    snapshot.data!,
+                                    fit: BoxFit.fitWidth,
+                                    width: MediaQuery.of(context).size.width *
+                                        0.75,
+                                  )),
+                            ),
+                            if (App().role == Role.admin || !isExisting)
                               IconButton(
                                   onPressed: () {
                                     imageBytes = Future.value(null);
                                     setState(() {});
                                   },
                                   icon: Icon(Icons.clear))
-                            ],
-                          );
-                        } else if (snapshot.hasError) {
-                          return Text('${snapshot.error}');
-                        }
-                        return IconButton(
-                            onPressed: () {
-                              _imgFromCamera();
-                            },
-                            icon: Icon(Icons.camera_alt));
-                      },
-                    ),
+                          ],
+                        );
+                      } else if (snapshot.hasError) {
+                        return Text('${snapshot.error}');
+                      }
+                      return IconButton(
+                          onPressed: () {
+                            _imgFromCamera();
+                          },
+                          icon: Icon(Icons.camera_alt));
+                    },
                   ),
+                ),
                 if (isExisting && App().role == Role.admin) ...[
                   SizedBox(height: 20),
                   Row(
