@@ -26,6 +26,7 @@ class _TicketsState extends State<Tickets> {
   late Future<List<Ticket>> tickets;
   late Future<String> app_title;
   bool _showClosed = false;
+  String _titleFilter = "";
 
   @override
   void initState() {
@@ -142,8 +143,11 @@ class _TicketsState extends State<Tickets> {
                   builder: (context, snapshot) {
                     Widget child;
                     if (snapshot.hasData) {
-                      var ts = snapshot.data!
-                          .where((t) => !t.is_closed || _showClosed);
+                      var ts = snapshot.data!.where((t) =>
+                          (!t.is_closed || _showClosed) &&
+                          t.title
+                              .toLowerCase()
+                              .contains(_titleFilter.toLowerCase()));
                       child = RefreshIndicator(
                         color: Colors.amberAccent,
                         onRefresh: () {
@@ -225,6 +229,20 @@ class _TicketsState extends State<Tickets> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  const Icon(Icons.search),
+                  SizedBox(
+                    width: 100,
+                    child: TextFormField(
+                        key: Key(_titleFilter),
+                        initialValue: _titleFilter,
+                        decoration: InputDecoration(
+                            labelText:
+                                MyLocalizations.of(context)!.tr("search")),
+                        onFieldSubmitted: (value) {
+                          _titleFilter = value;
+                          setState(() {});
+                        }),
+                  ),
                   Text(MyLocalizations.of(context)!.tr("show_closed")),
                   Switch(
                     onChanged: (bool val) {
