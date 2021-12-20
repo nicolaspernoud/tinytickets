@@ -3,6 +3,7 @@ import 'package:tinytickets/components/new_asset.dart';
 import 'package:tinytickets/models/asset.dart';
 import 'package:tinytickets/models/crud.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../globals.dart';
 import '../i18n.dart';
@@ -17,6 +18,8 @@ class Settings extends StatefulWidget {
 
 class _SettingsState extends State<Settings> {
   late Future<List<Asset>> assets;
+  static const _url =
+      'https://github.com/nicolaspernoud/tinytickets/releases/latest';
 
   @override
   void initState() {
@@ -36,6 +39,21 @@ class _SettingsState extends State<Settings> {
           child: ListView(
             children: [
               settingsField(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await canLaunch(_url)
+                        ? await launch(_url)
+                        : throw 'Could not launch $_url';
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                        MyLocalizations.of(context)!.tr("get_latest_release")),
+                  ),
+                ),
+              ),
               if (App().role == Role.admin) ...[
                 Center(
                   child: Padding(
