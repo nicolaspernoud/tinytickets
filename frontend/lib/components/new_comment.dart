@@ -67,7 +67,8 @@ class _NewEditCommentState extends State<NewEditComment> {
                   ),
                   TextFormField(
                     readOnly: widget.comment.id > 0 && App().role != Role.admin,
-                    maxLines: 3,
+                    minLines: 1,
+                    maxLines: 20,
                     initialValue: widget.comment.content,
                     decoration: new InputDecoration(
                         labelText: MyLocalizations.of(context)!.tr("content")),
@@ -98,7 +99,8 @@ class _NewEditCommentState extends State<NewEditComment> {
                               } else {
                                 await widget.crud.Create(widget.comment);
                               }
-                            } on TypeError {} catch (e) {
+                            } on TypeError {
+                            } catch (e) {
                               msg = e.toString();
                             }
                             ScaffoldMessenger.of(context).showSnackBar(
