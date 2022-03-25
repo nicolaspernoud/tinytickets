@@ -8,12 +8,23 @@ use crate::{
 use rocket::{
     fairing::AdHoc,
     response::status::Created,
+    routes,
     serde::{json::Json, Deserialize, Serialize},
 };
 
 use rocket_sync_db_pools::diesel;
 
 use self::diesel::prelude::*;
+
+macro_rules! trim {
+    () => {
+        fn trim(&mut self) -> &Self {
+            self.title = self.title.trim().to_string();
+            self.description = self.description.trim().to_string();
+            self
+        }
+    };
+}
 
 #[derive(
     Identifiable,
@@ -35,11 +46,7 @@ pub struct Asset {
 }
 
 impl Asset {
-    fn trim(mut self) -> Self {
-        self.title = self.title.trim().to_string();
-        self.description = self.description.trim().to_string();
-        self
-    }
+    trim!();
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
@@ -50,11 +57,7 @@ pub struct InAsset {
 }
 
 impl InAsset {
-    fn trim(mut self) -> Self {
-        self.title = self.title.trim().to_string();
-        self.description = self.description.trim().to_string();
-        self
-    }
+    trim!();
 }
 
 impl PartialEq<InAsset> for Asset {
@@ -71,13 +74,14 @@ fn options() -> &'static str {
 #[post("/", data = "<asset>")]
 async fn create(
     db: Db,
-    asset: Json<InAsset>,
+    mut asset: Json<InAsset>,
     _token: AdminToken<'_>,
 ) -> Result<Created<Json<InAsset>>> {
+    asset.trim();
     let asset_value = asset.clone();
     db.run(move |conn| {
         diesel::insert_into(assets::table)
-            .values(asset_value.trim())
+            .values(asset_value)
             .execute(conn)
     })
     .await?;
@@ -88,14 +92,15 @@ async fn create(
 #[patch("/<id>", data = "<asset>")]
 async fn update(
     db: Db,
-    asset: Json<Asset>,
+    mut asset: Json<Asset>,
     id: i32,
     _token: AdminToken<'_>,
 ) -> Result<Created<Json<Asset>>> {
+    asset.trim();
     let asset_value = asset.clone();
     db.run(move |conn| {
         diesel::update(assets::table.filter(assets::id.eq(id)))
-            .set(asset_value.trim())
+            .set(asset_value)
             .execute(conn)
     })
     .await?;

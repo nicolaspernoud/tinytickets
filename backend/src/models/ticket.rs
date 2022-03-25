@@ -17,6 +17,7 @@ use rocket::{
         status::{Created, NotFound},
         Debug,
     },
+    routes,
     serde::{json::Json, Deserialize, Serialize},
     tokio::{fs::File, task::spawn_blocking},
 };
@@ -25,6 +26,19 @@ use std::fs;
 use rocket_sync_db_pools::diesel;
 
 use self::diesel::prelude::*;
+
+macro_rules! trim {
+    () => {
+        fn trim(&mut self) -> &Self {
+            self.title = self.title.trim().to_string();
+            self.creator = self.creator.trim().to_string();
+            self.creator_mail = self.creator_mail.trim().to_string();
+            self.creator_phone = self.creator_phone.trim().to_string();
+            self.description = self.description.trim().to_string();
+            self
+        }
+    };
+}
 
 #[derive(
     Identifiable,
@@ -54,14 +68,7 @@ pub struct Ticket {
 }
 
 impl Ticket {
-    fn trim(mut self) -> Self {
-        self.title = self.title.trim().to_string();
-        self.creator = self.creator.trim().to_string();
-        self.creator_mail = self.creator_mail.trim().to_string();
-        self.creator_phone = self.creator_phone.trim().to_string();
-        self.description = self.description.trim().to_string();
-        self
-    }
+    trim!();
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
@@ -78,14 +85,7 @@ pub struct InTicket {
 }
 
 impl InTicket {
-    fn trim(mut self) -> Self {
-        self.title = self.title.trim().to_string();
-        self.creator = self.creator.trim().to_string();
-        self.creator_mail = self.creator_mail.trim().to_string();
-        self.creator_phone = self.creator_phone.trim().to_string();
-        self.description = self.description.trim().to_string();
-        self
-    }
+    trim!();
 }
 
 impl PartialEq<InTicket> for Ticket {
@@ -117,12 +117,12 @@ fn options() -> &'static str {
 #[post("/", data = "<ticket>")]
 async fn create(
     db: Db,
-    ticket: Json<InTicket>,
+    mut ticket: Json<InTicket>,
     _token: UserToken<'_>,
     mut mailer: Mailer,
     config: Config,
 ) -> Result<Created<Json<Ticket>>, NotFound<String>> {
-    let ticket_value = ticket.clone();
+    let ticket_value = ticket.trim().clone();
     let asset_id = ticket.asset_id;
     // Check that the asset that we want to create the ticket for exists...
     match db
@@ -134,7 +134,7 @@ async fn create(
             match db
                 .run(move |conn| {
                     if let Err(_err) = diesel::insert_into(tickets::table)
-                        .values(ticket_value.trim())
+                        .values(ticket_value)
                         .execute(conn)
                     {
                         return Err(NotFound("Could not create ticket".to_string()));
@@ -172,15 +172,15 @@ async fn create(
 #[patch("/<id>", data = "<ticket>")]
 async fn update(
     db: Db,
-    ticket: Json<Ticket>,
+    mut ticket: Json<Ticket>,
     id: i32,
     _token: AdminToken<'_>,
     mut mailer: Mailer,
 ) -> Result<Created<Json<Ticket>>> {
-    let t1 = ticket.clone();
+    let t1 = ticket.trim().clone();
     db.run(move |conn| {
         diesel::update(tickets::table.filter(tickets::id.eq(id)))
-            .set(t1.trim())
+            .set(t1)
             .execute(conn)
     })
     .await?;

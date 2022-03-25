@@ -18,6 +18,8 @@ rand = "0.8.4"
 lettre = "0.10.0-rc.4"
 handlebars = { version = "4.1.2", features = ["dir_source"] }
 image = "0.24.0"
+[target.'cfg(unix)'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.1"

@@ -10,10 +10,21 @@ use crate::{
 use rocket::{
     fairing::AdHoc,
     response::status::{Created, NotFound},
+    routes,
     serde::{json::Json, Deserialize, Serialize},
     tokio::task::spawn_blocking,
 };
 use rocket_sync_db_pools::diesel;
+
+macro_rules! trim {
+    () => {
+        fn trim(&mut self) -> &Self {
+            self.creator = self.creator.trim().to_string();
+            self.content = self.content.trim().to_string();
+            self
+        }
+    };
+}
 
 #[derive(
     Identifiable,
@@ -39,11 +50,7 @@ pub struct Comment {
 }
 
 impl Comment {
-    fn trim(mut self) -> Self {
-        self.creator = self.creator.trim().to_string();
-        self.content = self.content.trim().to_string();
-        self
-    }
+    trim!();
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
@@ -56,11 +63,7 @@ pub struct InComment {
 }
 
 impl InComment {
-    fn trim(mut self) -> Self {
-        self.creator = self.creator.trim().to_string();
-        self.content = self.content.trim().to_string();
-        self
-    }
+    trim!();
 }
 
 impl PartialEq<InComment> for Comment {
@@ -80,12 +83,12 @@ fn options() -> &'static str {
 #[post("/", data = "<comment>")]
 async fn create(
     db: Db,
-    comment: Json<InComment>,
+    mut comment: Json<InComment>,
     _token: UserToken<'_>,
     config: Config,
     mut mailer: crate::mail::Mailer,
 ) -> Result<Created<Json<InComment>>, NotFound<String>> {
-    let comment_value = comment.clone();
+    let comment_value = comment.trim().clone();
     let ticket_id = comment.ticket_id;
     // Check that the ticket that we want to create the comment for exists...
     match db
@@ -97,7 +100,7 @@ async fn create(
             match db
                 .run(move |conn| {
                     diesel::insert_into(comments::table)
-                        .values(comment_value.trim())
+                        .values(comment_value)
                         .execute(conn)
                 })
                 .await
@@ -125,14 +128,14 @@ async fn create(
 #[patch("/<id>", data = "<comment>")]
 async fn update(
     db: Db,
-    comment: Json<Comment>,
+    mut comment: Json<Comment>,
     id: i32,
     _token: AdminToken<'_>,
 ) -> Result<Created<Json<Comment>>> {
-    let comment_value = comment.clone();
+    let comment_value = comment.trim().clone();
     db.run(move |conn| {
         diesel::update(comments::table.filter(comments::id.eq(id)))
-            .set(comment_value.trim())
+            .set(comment_value)
             .execute(conn)
     })
     .await?;
