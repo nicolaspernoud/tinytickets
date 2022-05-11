@@ -78,7 +78,7 @@ async fn create(
     _token: AdminToken<'_>,
 ) -> Result<Created<Json<InAsset>>> {
     asset.trim();
-    let asset_value = asset.clone();
+    let asset_value = (*asset).clone();
     db.run(move |conn| {
         diesel::insert_into(assets::table)
             .values(asset_value)
@@ -97,7 +97,7 @@ async fn update(
     _token: AdminToken<'_>,
 ) -> Result<Created<Json<Asset>>> {
     asset.trim();
-    let asset_value = asset.clone();
+    let asset_value = (*asset).clone();
     db.run(move |conn| {
         diesel::update(assets::table.filter(assets::id.eq(id)))
             .set(asset_value)

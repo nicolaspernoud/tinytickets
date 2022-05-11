@@ -106,7 +106,7 @@ async fn create(
                 .await
             {
                 Ok(..) => {
-                    let c = comment.clone();
+                    let c = (*comment).clone();
                     spawn_blocking(move || {
                         match crate::models::ticket::template((&c, &ticket), "new_comment") {
                             Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
