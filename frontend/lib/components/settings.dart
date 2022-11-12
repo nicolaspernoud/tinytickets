@@ -3,7 +3,7 @@ import 'package:tinytickets/components/new_asset.dart';
 import 'package:tinytickets/models/asset.dart';
 import 'package:tinytickets/models/crud.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 import '../globals.dart';
 import '../i18n.dart';
@@ -43,8 +43,8 @@ class _SettingsState extends State<Settings> {
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: ElevatedButton(
                   onPressed: () async {
-                    await canLaunch(_url)
-                        ? await launch(_url)
+                    await canLaunchUrlString(_url)
+                        ? await launchUrlString(_url)
                         : throw 'Could not launch $_url';
                   },
                   child: Padding(

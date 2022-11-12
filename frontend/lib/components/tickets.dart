@@ -40,7 +40,7 @@ class _TicketsState extends State<Tickets> {
     if (App().role != Role.unknown) {
       tickets = widget.crud.ReadAll();
     } else {
-      WidgetsBinding.instance?.addPostFrameCallback(openSettings);
+      WidgetsBinding.instance.addPostFrameCallback(openSettings);
     }
     ;
   }

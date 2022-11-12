@@ -2,7 +2,7 @@
 # Stage 1 : Backend build #
 ###########################
 
-FROM rust:1.60 as backend-builder
+FROM rust:1.65 as backend-builder
 
 RUN rustup target add x86_64-unknown-linux-musl
 RUN apt update && apt install -y musl-tools musl-dev
@@ -35,7 +35,7 @@ RUN chown -Rf "${UID}":"${UID}" /app/data/
 # Stage 2 : Frontend build #
 ############################
 
-FROM cirrusci/flutter:2.10.5 as frontend-builder
+FROM cirrusci/flutter:3.3.8 as frontend-builder
 WORKDIR /build
 COPY ./frontend .
 RUN flutter pub get
