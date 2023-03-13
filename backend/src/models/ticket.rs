@@ -186,7 +186,7 @@ async fn update(
     .await?;
 
     // If the ticket is closed, send a mail to the creator
-    if ticket.is_closed {
+    if ticket.is_closed && !ticket.creator_mail.is_empty() {
         match ticket_with_comments(db, ticket.id).await {
             Ok(t) => {
                 spawn_blocking(move || match template(&t, "closed_ticket") {

@@ -68,14 +68,13 @@ class _NewEditTicketState extends State<NewEditTicket> {
     }
   }
 
-  _imgFromCamera() async {
+  _imgFrom(ImageSource source) async {
     final temp = await ImagePicker().pickImage(
-        source: ImageSource.camera,
-        imageQuality: JPG_IMAGE_QUALITY,
-        maxWidth: 1280);
+        source: source, imageQuality: JPG_IMAGE_QUALITY, maxWidth: 1280);
     if (temp != null) {
-      imageBytes = temp.readAsBytes();
-      setState(() {});
+      setState(() {
+        imageBytes = temp.readAsBytes();
+      });
     }
   }
 
@@ -84,7 +83,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
     final orientedImage = image.bakeOrientation(capturedImage!);
     final encodedImage =
         image.encodeJpg(orientedImage, quality: JPG_IMAGE_QUALITY);
-    return encodedImage as Uint8List;
+    return encodedImage;
   }
 
   Future<void> _imgToServer(int id) async {
@@ -203,14 +202,6 @@ class _NewEditTicketState extends State<NewEditTicket> {
                   decoration: new InputDecoration(
                       labelText:
                           MyLocalizations.of(context)!.tr("description")),
-                  // The validator receives the text that the user has entered.
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return MyLocalizations.of(context)!
-                          .tr("please_enter_some_text");
-                    }
-                    return null;
-                  },
                   initialValue: widget.ticket.description,
                   onChanged: (value) {
                     widget.ticket.description = value;
@@ -226,14 +217,6 @@ class _NewEditTicketState extends State<NewEditTicket> {
                         decoration: new InputDecoration(
                             labelText:
                                 MyLocalizations.of(context)!.tr("creator")),
-                        // The validator receives the text that the user has entered.
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return MyLocalizations.of(context)!
-                                .tr("please_enter_some_text");
-                          }
-                          return null;
-                        },
                         initialValue: widget.ticket.creator,
                         onChanged: (value) {
                           widget.ticket.creator = value;
@@ -249,9 +232,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                 .tr("creator_mail")),
                         // The validator receives the text that the user has entered.
                         validator: (value) {
-                          if (value == null ||
-                              value.isEmpty ||
-                              !value.isValidEmail()) {
+                          if (!value!.isEmpty && !value.isValidEmail()) {
                             return MyLocalizations.of(context)!
                                 .tr("please_enter_valid_email");
                           }
@@ -276,9 +257,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                 .tr("creator_phone")),
                         // The validator receives the text that the user has entered.
                         validator: (value) {
-                          if (value == null ||
-                              value.isEmpty ||
-                              !value.isValidPhoneNumber()) {
+                          if (!value!.isEmpty && !value.isValidPhoneNumber()) {
                             return MyLocalizations.of(context)!
                                 .tr("please_enter_valid_phone_number");
                           }
@@ -304,7 +283,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                             InkWell(
                               onTap: () {
                                 if (App().role == Role.admin || !isExisting)
-                                  _imgFromCamera();
+                                  _imgFrom(ImageSource.camera);
                               },
                               child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20.0),
@@ -327,11 +306,21 @@ class _NewEditTicketState extends State<NewEditTicket> {
                       } else if (snapshot.hasError) {
                         return Text('${snapshot.error}');
                       }
-                      return IconButton(
-                          onPressed: () {
-                            _imgFromCamera();
-                          },
-                          icon: Icon(Icons.camera_alt));
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                              onPressed: () {
+                                _imgFrom(ImageSource.camera);
+                              },
+                              icon: Icon(Icons.camera_alt)),
+                          IconButton(
+                              onPressed: () {
+                                _imgFrom(ImageSource.gallery);
+                              },
+                              icon: Icon(Icons.upload_file)),
+                        ],
+                      );
                     },
                   ),
                 ),
