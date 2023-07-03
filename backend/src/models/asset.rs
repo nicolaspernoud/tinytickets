@@ -1,21 +1,21 @@
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, patch},
+    Json, Router,
+};
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     config::{AdminToken, UserToken},
-    models::{
-        db::{Db, Result},
-        schema::*,
-    },
-};
-use rocket::{
-    fairing::AdHoc,
-    response::status::Created,
-    routes,
-    serde::{json::Json, Deserialize, Serialize},
+    errors::internal_error,
 };
 
-use rocket_sync_db_pools::diesel;
+use super::schema::*;
 
-use self::diesel::prelude::*;
-
+// TODO : use validation or serde !
 macro_rules! trim {
     () => {
         fn trim(&mut self) -> &Self {
@@ -33,12 +33,12 @@ macro_rules! trim {
     Deserialize,
     Serialize,
     Queryable,
+    Selectable,
     Insertable,
     AsChangeset,
     PartialEq,
 )]
-#[serde(crate = "rocket::serde")]
-#[table_name = "assets"]
+#[diesel(table_name = assets)]
 pub struct Asset {
     pub id: i32,
     pub title: String,
@@ -66,74 +66,92 @@ impl PartialEq<InAsset> for Asset {
     }
 }
 
-#[options("/<_..>")]
-fn options() -> &'static str {
-    ""
-}
-
-#[post("/", data = "<asset>")]
 async fn create(
-    db: Db,
-    mut asset: Json<InAsset>,
-    _token: AdminToken<'_>,
-) -> Result<Created<Json<InAsset>>> {
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    Json(mut asset): Json<InAsset>,
+    AdminToken: AdminToken,
+) -> Result<Json<InAsset>, (StatusCode, String)> {
     asset.trim();
-    let asset_value = (*asset).clone();
-    db.run(move |conn| {
+    let conn = pool.get().await.map_err(internal_error)?;
+    conn.interact(|conn| {
         diesel::insert_into(assets::table)
-            .values(asset_value)
+            .values(asset)
             .execute(conn)
     })
-    .await?;
+    .await
+    .map_err(internal_error)?
+    .map_err(internal_error)?;
 
-    Ok(Created::new("/").body(asset))
+    Ok(Json(asset))
 }
 
-#[patch("/<id>", data = "<asset>")]
 async fn update(
-    db: Db,
+    Path(id): Path<u32>,
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
     mut asset: Json<Asset>,
-    id: i32,
-    _token: AdminToken<'_>,
-) -> Result<Created<Json<Asset>>> {
+    AdminToken: AdminToken,
+) -> impl IntoResponse {
     asset.trim();
-    let asset_value = (*asset).clone();
-    db.run(move |conn| {
-        diesel::update(assets::table.filter(assets::id.eq(id)))
-            .set(asset_value)
-            .execute(conn)
-    })
-    .await?;
+    let conn = pool.get().await.map_err(internal_error)?;
+    let res = conn
+        .interact(|conn| {
+            diesel::update(assets::table.filter(assets::id.eq(id)))
+                .set(asset)
+                .returning(Asset::as_returning())
+                .get_result(conn)
+        })
+        .await
+        .map_err(internal_error)?
+        .map_err(internal_error)?;
 
-    Ok(Created::new("/").body(asset))
+    (StatusCode::OK, Json(res))
 }
 
-#[get("/")]
-async fn list(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<i32>>> {
-    let ids: Vec<i32> = db
-        .run(|conn| assets::table.select(assets::id).load(conn))
-        .await?;
-
-    Ok(Json(ids))
+async fn list(
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    UserToken: UserToken,
+) -> impl IntoResponse {
+    let conn = pool.get().await.map_err(internal_error)?;
+    let res: Vec<i32> = conn
+        .interact(|conn| assets::table.select(assets::id).load(conn))
+        .await
+        .map_err(internal_error)?
+        .map_err(internal_error)?;
+    Ok(Json(res))
 }
 
-#[get("/all")]
-async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Asset>>> {
-    let all_assets: Vec<Asset> = db.run(|conn| assets::table.load(conn)).await?;
-    Ok(Json(all_assets))
+async fn list_all(
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    UserToken: UserToken,
+) -> impl IntoResponse {
+    let conn = pool.get().await.map_err(internal_error)?;
+    let res = conn
+        .interact(|conn| assets::table.select(Asset::as_select()).load(conn))
+        .await
+        .map_err(internal_error)?
+        .map_err(internal_error)?;
+    Ok(Json(res))
 }
 
-#[get("/<id>")]
-async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Option<Json<Asset>> {
-    db.run(move |conn| assets::table.filter(assets::id.eq(id)).first(conn))
+async fn read(
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    id: i32,
+    UserToken: UserToken,
+) -> Option<Json<Asset>> {
+    let conn = pool.get().await.map_err(internal_error)?;
+    conn.run(move |conn| assets::table.filter(assets::id.eq(id)).first(conn))
         .await
         .map(Json)
         .ok()
 }
 
-#[delete("/<id>")]
-async fn delete(db: Db, id: i32, _token: AdminToken<'_>) -> Result<Option<()>> {
-    let affected = db
+async fn delete(
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    id: i32,
+    AdminToken: AdminToken,
+) -> impl IntoResponse {
+    let conn = pool.get().await.map_err(internal_error)?;
+    let affected = conn
         .run(move |conn| {
             diesel::delete(assets::table)
                 .filter(assets::id.eq(id))
@@ -144,18 +162,19 @@ async fn delete(db: Db, id: i32, _token: AdminToken<'_>) -> Result<Option<()>> {
     Ok((affected == 1).then(|| ()))
 }
 
-#[delete("/")]
-async fn destroy(db: Db, _token: AdminToken<'_>) -> Result<()> {
-    db.run(move |conn| diesel::delete(assets::table).execute(conn))
+async fn destroy(
+    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    AdminToken: AdminToken,
+) -> impl IntoResponse {
+    let conn = pool.get().await.map_err(internal_error)?;
+    conn.run(move |conn| diesel::delete(assets::table).execute(conn))
         .await?;
     Ok(())
 }
 
-pub fn stage() -> AdHoc {
-    AdHoc::on_ignite("Assets routes", |rocket| async {
-        rocket.mount(
-            "/api/assets",
-            routes![options, list, list_all, read, create, update, delete, destroy],
-        )
-    })
+pub fn build_assets_router() -> Router {
+    Router::new()
+        .route("/api/assets", get(list).post(create).delete(destroy))
+        .route("/api/assets/all", get(list_all))
+        .route("/api/assets/:id", patch(update).delete(delete).get(read))
 }

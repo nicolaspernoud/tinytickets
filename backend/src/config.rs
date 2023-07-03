@@ -1,12 +1,47 @@
-use rocket::http::Status;
-use rocket::request::{FromRequest, Outcome, Request};
-
-use std::env;
-
+use crate::errors::internal_error;
+use crate::mail::Mailer;
+use axum::async_trait;
+use axum::extract::{FromRef, FromRequestParts};
+use axum::http::request::Parts;
+use axum::http::StatusCode;
+use deadpool_diesel::sqlite::Manager;
+use deadpool_diesel::{Pool, Runtime};
+use diesel::SqliteConnection;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use std::env;
 
-use crate::mail::Mailer;
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("db/migrations");
+
+#[derive(Clone)]
+pub(crate) struct AppState {
+    config: Config,
+    mailer: Mailer,
+    pool: Pool<Manager>,
+}
+
+impl AppState {
+    pub async fn new() -> Self {
+        // set up connection pool
+        let manager = Manager::new("db/db.sqlite", Runtime::Tokio1);
+        let pool = Pool::builder(manager).max_size(8).build().unwrap();
+
+        // run the migrations on server startup
+        {
+            let conn: deadpool_diesel::sqlite::Object = pool.get().await.unwrap();
+            conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_| ()))
+                .await
+                .unwrap()
+                .unwrap();
+        }
+        Self {
+            config: Config::init(),
+            mailer: Mailer::new(false),
+            pool,
+        }
+    }
+}
 
 fn random_string() -> std::string::String {
     thread_rng()
@@ -26,105 +61,74 @@ pub struct Config {
 
 impl Config {
     pub fn init() -> Config {
-        let admin_t = env::var("ADMIN_TOKEN");
-        let user_t = env::var("USER_TOKEN");
-        let config = Config {
-            admin_token: format!(
-                "$ADMIN${}",
-                if admin_t.is_err() {
-                    random_string()
-                } else {
-                    admin_t.unwrap()
-                }
-            ),
-            user_token: format!(
-                "$USER${}",
-                if user_t.is_err() {
-                    random_string()
-                } else {
-                    user_t.unwrap()
-                }
-            ),
-            ticket_mail_to: env::var("TICKET_MAIL_TO").unwrap_or_default(),
-            comment_mail_to: env::var("COMMENT_MAIL_TO").unwrap_or_default(),
-        };
-        println!("Admin token is: {}", config.admin_token);
-        println!("User token is: {}", config.user_token);
-        config
+        let admin_token = env::var("ADMIN_TOKEN").unwrap_or_else(|_| random_string());
+        let user_token = env::var("USER_TOKEN").unwrap_or_else(|_| random_string());
+        let ticket_mail_to = env::var("TICKET_MAIL_TO").unwrap_or_default();
+        let comment_mail_to = env::var("COMMENT_MAIL_TO").unwrap_or_default();
+
+        println!("Admin token is: {}", admin_token);
+        println!("User token is: {}", user_token);
+
+        Config {
+            admin_token: format!("$ADMIN${}", admin_token),
+            user_token: format!("$USER${}", user_token),
+            ticket_mail_to,
+            comment_mail_to,
+        }
     }
 }
+pub struct AdminToken;
 
-#[derive(Debug)]
-pub enum TokenError {
-    Missing,
-    Invalid,
-}
+#[async_trait]
+impl<S> FromRequestParts<S> for AdminToken
+where
+    S: Send + Sync,
+    Config: FromRef<S>,
+{
+    type Rejection = (StatusCode, &'static str);
 
-pub struct AdminToken<'r>(&'r str);
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for AdminToken<'r> {
-    type Error = TokenError;
-
-    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        /// Returns true if `token` is a valid API token string.
-        fn is_valid(token: &str, req: &Request<'_>) -> bool {
-            match req.rocket().state::<Config>() {
-                Some(config) => token == config.admin_token,
-                None => false,
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let config = Config::from_ref(state);
+        if let Some(token) = parts.headers.get("X-TOKEN") {
+            if token
+                .to_str()
+                .map_err(|_| (StatusCode::UNAUTHORIZED, "`X-TOKEN` header is corrupted"))?
+                == config.admin_token
+            {
+                Ok(AdminToken)
+            } else {
+                Err((StatusCode::FORBIDDEN, "access denied"))
             }
-        }
-
-        match req.headers().get_one("X-TOKEN") {
-            None => Outcome::Failure((Status::Unauthorized, TokenError::Missing)),
-            Some(token) if is_valid(token, req) => Outcome::Success(AdminToken(token)),
-            Some(_) => Outcome::Failure((Status::Forbidden, TokenError::Invalid)),
+        } else {
+            Err((StatusCode::UNAUTHORIZED, "`X-TOKEN` header is missing"))
         }
     }
 }
 
-pub struct UserToken<'r>(&'r str);
+pub struct UserToken;
 
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for UserToken<'r> {
-    type Error = TokenError;
+#[async_trait]
+impl<S> FromRequestParts<S> for UserToken
+where
+    S: Send + Sync,
+    Config: FromRef<S>,
+{
+    type Rejection = (StatusCode, &'static str);
 
-    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        /// Returns true if `token` is a valid API token string.
-        fn is_valid(token: &str, req: &Request<'_>) -> bool {
-            match req.rocket().state::<Config>() {
-                Some(config) => token == config.user_token || token == config.admin_token,
-                None => false,
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let config = Config::from_ref(state);
+        if let Some(token) = parts.headers.get("X-TOKEN") {
+            if token
+                .to_str()
+                .map_err(|_| (StatusCode::UNAUTHORIZED, "`X-TOKEN` header is corrupted"))?
+                == config.user_token
+            {
+                Ok(UserToken)
+            } else {
+                Err((StatusCode::FORBIDDEN, "access denied"))
             }
-        }
-
-        match req.headers().get_one("X-TOKEN") {
-            None => Outcome::Failure((Status::Unauthorized, TokenError::Missing)),
-            Some(token) if is_valid(token, req) => Outcome::Success(UserToken(token)),
-            Some(_) => Outcome::Failure((Status::Forbidden, TokenError::Invalid)),
-        }
-    }
-}
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for Mailer {
-    type Error = ();
-
-    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, ()> {
-        match request.rocket().state::<Mailer>() {
-            Some(mailer) => Outcome::Success(mailer.clone()),
-            None => rocket::outcome::Outcome::Forward(()),
-        }
-    }
-}
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for Config {
-    type Error = ();
-    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, ()> {
-        match request.rocket().state::<Config>() {
-            Some(config) => Outcome::Success(config.clone()),
-            None => rocket::outcome::Outcome::Forward(()),
+        } else {
+            Err((StatusCode::UNAUTHORIZED, "`X-TOKEN` header is missing"))
         }
     }
 }
