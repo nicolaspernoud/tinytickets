@@ -9,13 +9,18 @@ use crate::{
     },
 };
 
-mod config;
-mod errors;
-mod mail;
-mod models;
-
 #[tokio::main]
 async fn main() {
+    // run it with hyper
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
+    tracing::debug!("listening on {}", addr);
+    axum::Server::bind(&addr)
+        .serve(build_router().await.into_make_service())
+        .await
+        .unwrap();
+}
+
+async fn build_router() -> Router {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -23,11 +28,8 @@ async fn main() {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
-
     let state = AppState::new().await;
-
-    // build our application with some routes
-    let app = Router::new()
+    Router::new()
         .route(
             "/api/app-title",
             get(|| async {
@@ -37,13 +39,5 @@ async fn main() {
         .nest("/api/assets", build_assets_router())
         .nest("/api/comments", build_comments_router())
         .nest("/api/tickets", build_tickets_router())
-        .with_state(state);
-
-    // run it with hyper
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
-    tracing::debug!("listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+        .with_state(state)
 }
