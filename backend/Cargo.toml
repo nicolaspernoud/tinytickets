@@ -3,6 +3,13 @@ name = "tinytickets_backend"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "atrium"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -12,7 +19,7 @@ deadpool-diesel = { version = "0.4.1", features = ["sqlite"] }
 diesel = { version = "2", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
 diesel_migrations = "2"
 handlebars = { version = "4.3", features = ["dir_source"] }
-http = "0.2.9"
+http = "0.2"
 image = "0.24"
 lettre = "0.10"
 libsqlite3-sys = { version = "^0", features = ["bundled"] }
