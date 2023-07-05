@@ -1,4 +1,3 @@
-use crate::errors::internal_error;
 use crate::mail::Mailer;
 use axum::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
@@ -6,7 +5,6 @@ use axum::http::request::Parts;
 use axum::http::StatusCode;
 use deadpool_diesel::sqlite::Manager;
 use deadpool_diesel::{Pool, Runtime};
-use diesel::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -19,6 +17,24 @@ pub(crate) struct AppState {
     config: Config,
     mailer: Mailer,
     pool: Pool<Manager>,
+}
+
+impl FromRef<AppState> for Config {
+    fn from_ref(state: &AppState) -> Self {
+        state.config.clone()
+    }
+}
+
+impl FromRef<AppState> for Mailer {
+    fn from_ref(state: &AppState) -> Self {
+        state.mailer.clone()
+    }
+}
+
+impl FromRef<AppState> for Pool<Manager> {
+    fn from_ref(state: &AppState) -> Self {
+        state.pool.clone()
+    }
 }
 
 impl AppState {
@@ -129,6 +145,24 @@ where
             }
         } else {
             Err((StatusCode::UNAUTHORIZED, "`X-TOKEN` header is missing"))
+        }
+    }
+}
+
+pub struct Db(pub(crate) deadpool_diesel::sqlite::Object);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for Db
+where
+    S: Send + Sync,
+    Pool<Manager>: FromRef<S>,
+{
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(_parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        match Pool::from_ref(state).get().await {
+            Ok(db) => Ok(Db(db)),
+            Err(_) => Err((StatusCode::INTERNAL_SERVER_ERROR, "database is unreachable")),
         }
     }
 }

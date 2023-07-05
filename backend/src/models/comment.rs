@@ -7,27 +7,19 @@ use axum::{
 };
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_trim::string_trim;
 use tokio::task::spawn_blocking;
 
 use crate::{
-    config::{AdminToken, AppState, UserToken},
-    errors::internal_error,
+    config::{AdminToken, AppState, Config, Db, UserToken},
+    errors::ErrResponse,
+    mail::Mailer,
 };
 
 use super::{
     schema::{comments, tickets},
     ticket::Ticket,
 };
-
-macro_rules! trim {
-    () => {
-        fn trim(&mut self) -> &Self {
-            self.creator = self.creator.trim().to_string();
-            self.content = self.content.trim().to_string();
-            self
-        }
-    };
-}
 
 #[derive(
     Identifiable,
@@ -38,7 +30,6 @@ macro_rules! trim {
     Serialize,
     Queryable,
     Insertable,
-    Selectable,
     AsChangeset,
     PartialEq,
 )]
@@ -48,12 +39,10 @@ pub struct Comment {
     pub id: i32,
     pub ticket_id: i32,
     pub time: chrono::NaiveDateTime,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub content: String,
-}
-
-impl Comment {
-    trim!();
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
@@ -61,12 +50,10 @@ impl Comment {
 pub struct InComment {
     pub ticket_id: i32,
     pub time: chrono::NaiveDateTime,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub content: String,
-}
-
-impl InComment {
-    trim!();
 }
 
 impl PartialEq<InComment> for Comment {
@@ -78,136 +65,116 @@ impl PartialEq<InComment> for Comment {
     }
 }
 
-pub fn build_comments_router() -> Router {
+pub(crate) fn build_comments_router() -> Router<AppState> {
     Router::new()
-        .route("/api/comments", get(list).post(create).delete(destroy))
-        .route("/api/comments/all", get(list_all))
-        .route("/api/comments/:id", patch(update).delete(delete).get(read))
+        .route("", get(list).post(create).delete(destroy))
+        .route("all", get(list_all))
+        .route(":id", patch(update).delete(delete).get(read))
 }
 
 async fn create(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    mut comment: Json<InComment>,
-    UserToken: UserToken,
-    State(state): AppState,
-) -> impl IntoResponse {
-    let comment_value = comment.trim().clone();
+    State(mut mailer): State<Mailer>,
+    State(config): State<Config>,
+    _: UserToken,
+    Db(db): Db,
+    Json(comment): Json<InComment>,
+) -> Result<StatusCode, ErrResponse> {
     let ticket_id = comment.ticket_id;
-    let conn = pool.get().await.map_err(internal_error)?;
-    match conn
-        .run(move |conn| tickets::table.find(ticket_id).get_result::<Ticket>(conn))
-        .await
+    // Check that the ticket we want to create the comment for exists
+    match db
+        .interact(move |conn| tickets::table.find(ticket_id).get_result::<Ticket>(conn))
+        .await?
     {
         Ok(ticket) => {
             // ...create the comment if so
-            match conn
-                .run(move |conn| {
-                    diesel::insert_into(comments::table)
-                        .values(comment_value)
-                        .execute(conn)
-                })
+            let c = comment.clone();
+            match db
+                .interact(move |conn| diesel::insert_into(comments::table).values(c).execute(conn))
                 .await
             {
                 Ok(..) => {
-                    let c = (*comment).clone();
                     spawn_blocking(move || {
-                        match crate::models::ticket::template((&c, &ticket), "new_comment") {
-                            Ok(r) => {
-                                state
-                                    .mailer
-                                    .send_mail_to(r.0, r.1, state.config.comment_mail_to)
-                            }
+                        match crate::models::ticket::template((&comment, &ticket), "new_comment") {
+                            Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
                             Err(e) => println!("Handlebars error : {}", e),
                         }
                     });
-                    Ok((StatusCode::CREATED, comment))
+                    Ok(StatusCode::CREATED)
                 }
 
-                Err(..) => Err((StatusCode::NOT_FOUND, "could not create comment")),
+                Err(..) => Err(ErrResponse::S404("could not create comment")),
             }
         }
-        Err(..) => Err((
-            StatusCode::NOT_FOUND,
-            "Cannot create comment related to non existing ticket.",
+        Err(..) => Err(ErrResponse::S404(
+            "cannot create comment related to non existing ticket",
         )),
     }
 }
 
 async fn update(
-    Path(id): Path<u32>,
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    mut comment: Json<Comment>,
+    Path(id): Path<i32>,
     AdminToken: AdminToken,
-) -> impl IntoResponse {
-    let comment_value = comment.trim().clone();
-    let conn = pool.get().await.map_err(internal_error)?;
-    conn.run(move |conn| {
+    Db(db): Db,
+    Json(comment): Json<Comment>,
+) -> Result<StatusCode, ErrResponse> {
+    db.interact(move |conn| {
         diesel::update(comments::table.filter(comments::id.eq(id)))
-            .set(comment_value)
+            .set(comment)
             .execute(conn)
     })
-    .await?;
-
-    Ok((StatusCode::CREATED, comment))
+    .await??;
+    Ok(StatusCode::OK)
 }
 
 async fn list(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    State(_): State<AppState>,
     UserToken: UserToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    let ids: Vec<i32> = conn
-        .run(|conn| comments::table.select(comments::id).load(conn))
-        .await?;
-
-    Ok(Json(ids))
+    Db(db): Db,
+) -> Result<impl IntoResponse, ErrResponse> {
+    let res: Vec<i32> = db
+        .interact(|conn| comments::table.select(comments::id).load(conn))
+        .await??;
+    Ok(Json(res))
 }
 
-async fn list_all(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    UserToken: UserToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-    let all_comments: Vec<Comment> = conn.run(|conn| comments::table.load(conn)).await?;
+async fn list_all(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
+    let all_comments: Vec<Comment> = db.interact(|conn| comments::table.load(conn)).await??;
     Ok(Json(all_comments))
 }
 
 async fn read(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    id: i32,
+    Path(id): Path<i32>,
     UserToken: UserToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-    conn.run(move |conn| comments::table.filter(comments::id.eq(id)).first(conn))
-        .await
-        .map(Json)
-        .ok()
+    Db(db): Db,
+) -> Result<Json<Comment>, ErrResponse> {
+    let comment: Comment = db
+        .interact(move |conn| comments::table.filter(comments::id.eq(id)).first(conn))
+        .await??;
+    Ok(Json(comment))
 }
 
 async fn delete(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    id: i32,
+    Path(id): Path<i32>,
     AdminToken: AdminToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-    let affected = conn
-        .run(move |conn| {
+    Db(db): Db,
+) -> Result<(), ErrResponse> {
+    if db
+        .interact(move |conn| {
             diesel::delete(comments::table)
                 .filter(comments::id.eq(id))
                 .execute(conn)
         })
-        .await?;
-
-    Ok((affected == 1).then(|| ()))
+        .await??
+        == 1
+    {
+        Ok(())
+    } else {
+        Err(ErrResponse::S404("object not found in database"))
+    }
 }
 
-async fn destroy(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    AdminToken: AdminToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-    conn.run(move |conn| diesel::delete(comments::table).execute(conn))
-        .await?;
+async fn destroy(AdminToken: AdminToken, Db(db): Db) -> Result<(), ErrResponse> {
+    db.interact(move |conn| diesel::delete(comments::table).execute(conn))
+        .await??;
     Ok(())
 }

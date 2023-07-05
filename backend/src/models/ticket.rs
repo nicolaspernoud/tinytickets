@@ -1,38 +1,27 @@
 use crate::{
-    config::{AdminToken, AppState, Config, UserToken},
-    errors::internal_error,
+    config::{AdminToken, AppState, Config, Db, UserToken},
+    errors::ErrResponse,
     mail::Mailer,
     models::{asset::Asset, comment::Comment, schema::*},
 };
 use axum::{
-    body::Bytes,
+    body::{Bytes, StreamBody},
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch, post},
     Json, Router,
 };
-use deadpool_diesel::{sqlite::Object, Manager};
+use deadpool_diesel::sqlite::Object;
 use diesel::prelude::*;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 use image::{imageops::FilterType::Lanczos3, GenericImageView};
 use serde::{Deserialize, Serialize};
+use serde_trim::string_trim;
 use tokio::{fs::File, task::spawn_blocking};
+use tokio_util::io::ReaderStream;
 
 use std::{fmt::Debug, fs};
-
-macro_rules! trim {
-    () => {
-        fn trim(&mut self) -> &Self {
-            self.title = self.title.trim().to_string();
-            self.creator = self.creator.trim().to_string();
-            self.creator_mail = self.creator_mail.trim().to_string();
-            self.creator_phone = self.creator_phone.trim().to_string();
-            self.description = self.description.trim().to_string();
-            self
-        }
-    };
-}
 
 #[derive(
     Identifiable,
@@ -40,9 +29,9 @@ macro_rules! trim {
     Debug,
     Clone,
     Deserialize,
+    Selectable,
     Serialize,
     Queryable,
-    Selectable,
     Insertable,
     AsChangeset,
     PartialEq,
@@ -52,34 +41,36 @@ macro_rules! trim {
 pub struct Ticket {
     pub id: i32,
     pub asset_id: i32,
+    #[serde(deserialize_with = "string_trim")]
     pub title: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_mail: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_phone: String,
+    #[serde(deserialize_with = "string_trim")]
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
-}
-
-impl Ticket {
-    trim!();
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
 #[table_name = "tickets"]
 pub struct InTicket {
     pub asset_id: i32,
+    #[serde(deserialize_with = "string_trim")]
     pub title: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_mail: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_phone: String,
+    #[serde(deserialize_with = "string_trim")]
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
-}
-
-impl InTicket {
-    trim!();
 }
 
 impl PartialEq<InTicket> for Ticket {
@@ -101,83 +92,74 @@ struct OutTicket {
     comments: Vec<Comment>,
 }
 
-pub fn build_tickets_router() -> Router {
+pub(crate) fn build_tickets_router() -> Router<AppState> {
     Router::new()
-        .route("/api/tickets", get(list).post(create).delete(destroy))
-        .route("/api/tickets/all", get(list_all))
-        .route("/api/tickets/:id", patch(update).delete(delete).get(read))
+        .route("", get(list).post(create).delete(destroy))
+        .route("all", get(list_all))
+        .route(":id", patch(update).delete(delete).get(read))
         .route(
-            "/api/tickets/photos/:id",
+            "photos/:id",
             post(upload).get(retrieve).delete(delete_photo),
         )
+        .route("mail_open", get(mail_open))
 }
 
 const PHOTOS_PATH: &str = "data/tickets/photos";
 
 async fn create(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    mut ticket: Json<InTicket>,
-    UserToken: UserToken,
+    State(mut mailer): State<Mailer>,
     State(config): State<Config>,
-) -> impl IntoResponse {
-    let ticket_value = ticket.trim().clone();
+    _: UserToken,
+    Db(db): Db,
+    Json(ticket): Json<InTicket>,
+) -> Result<StatusCode, ErrResponse> {
     let asset_id = ticket.asset_id;
     // Check that the asset that we want to create the ticket for exists...
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    match conn
-        .run(move |conn| assets::table.find(asset_id).get_result::<Asset>(conn))
-        .await
+    match db
+        .interact(move |conn| assets::table.find(asset_id).get_result::<Asset>(conn))
+        .await?
     {
         Ok(asset) => {
             // ...create the ticket if so, and return the created ticket
-            let t: Ticket = conn
+            let t = db
                 .interact(|conn| {
                     diesel::insert_into(tickets::table)
-                        .values(ticket_value)
+                        .values(ticket)
                         .returning(Ticket::as_returning())
                         .get_result(conn)
                 })
-                .await
-                .map_err(internal_error)?
-                .map_err(internal_error)?;
+                .await??;
 
-            let t2 = &t;
-            spawn_blocking(move || match template((asset, &t2), "new_ticket") {
-                Ok(r) => state
-                    .mailer
-                    .send_mail_to(r.0, r.1, state.config.ticket_mail_to),
+            spawn_blocking(move || match template((asset, &t), "new_ticket") {
+                Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
                 Err(e) => println!("Handlebars error : {}", e),
             });
-            Ok((StatusCode::CREATED, t))
+            Ok(StatusCode::CREATED)
         }
-        Err(..) => Err((
-            StatusCode::NOT_FOUND,
+        Err(..) => Err(ErrResponse::S404(
             "cannot create ticket related to non existing asset",
         )),
     }
 }
 
 async fn update(
-    Path(id): Path<u32>,
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    State(mailer): State<Mailer>,
-    mut ticket: Json<Ticket>,
+    State(mut mailer): State<Mailer>,
+    Path(id): Path<i32>,
     AdminToken: AdminToken,
-) -> impl IntoResponse {
-    let t1 = ticket.trim().clone();
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    conn.run(move |conn| {
-        diesel::update(tickets::table.filter(tickets::id.eq(id)))
-            .set(t1)
-            .execute(conn)
-    })
-    .await?;
-
+    Db(db): Db,
+    Json(ticket): Json<Ticket>,
+) -> Result<StatusCode, ErrResponse> {
+    let ticket = db
+        .interact(move |conn| {
+            diesel::update(tickets::table.filter(tickets::id.eq(id)))
+                .set(ticket)
+                .returning(Ticket::as_returning())
+                .get_result(conn)
+        })
+        .await??;
     // If the ticket is closed, send a mail to the creator
     if ticket.is_closed && !ticket.creator_mail.is_empty() {
-        match ticket_with_comments(conn, ticket.id).await {
+        match ticket_with_comments(db, ticket.id).await {
             Ok(t) => {
                 spawn_blocking(move || match template(&t, "closed_ticket") {
                     Ok(r) => mailer.send_mail_to(r.0, r.1, t.ticket.creator_mail),
@@ -187,50 +169,38 @@ async fn update(
             Err(e) => println!("{}", e),
         }
     }
-
-    Ok((StatusCode::CREATED, ticket))
+    Ok(StatusCode::CREATED)
 }
 
 async fn list(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    State(_): State<AppState>,
     UserToken: UserToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    let ids: Vec<i32> = conn
-        .run(|conn| tickets::table.select(tickets::id).load(conn))
-        .await?;
-
-    Ok(Json(ids))
+    Db(db): Db,
+) -> Result<impl IntoResponse, ErrResponse> {
+    let res: Vec<i32> = db
+        .interact(|conn| tickets::table.select(tickets::id).load(conn))
+        .await??;
+    Ok(Json(res))
 }
 
-async fn list_all(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    UserToken: UserToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    let all_tickets: Vec<Ticket> = conn
-        .run(|conn| tickets::table.order_by(tickets::time.desc()).load(conn))
-        .await?;
+async fn list_all(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
+    let all_tickets: Vec<Ticket> = db.interact(|conn| tickets::table.load(conn)).await??;
     Ok(Json(all_tickets))
 }
 
 async fn mail_open(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
+    Db(db): Db,
     UserToken: UserToken,
-    State(mailer): State<Mailer>,
+    State(mut mailer): State<Mailer>,
     State(config): State<Config>,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    let open_tickets: Vec<Ticket> = conn
-        .run(|conn| {
+) -> Result<impl IntoResponse, ErrResponse> {
+    let open_tickets: Vec<Ticket> = db
+        .interact(|conn| {
             tickets::table
                 .filter(tickets::is_closed.eq(false))
                 .load(conn)
         })
-        .await?;
+        .await??;
     if !open_tickets.is_empty() {
         match template(&open_tickets, "open_tickets") {
             Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
@@ -240,34 +210,28 @@ async fn mail_open(
     Ok(Json(open_tickets))
 }
 
-async fn read(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    id: i32,
-    UserToken: UserToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    match ticket_with_comments(conn, id).await {
+async fn read(Db(db): Db, Path(id): Path<i32>, UserToken: UserToken) -> impl IntoResponse {
+    match ticket_with_comments(db, id).await {
         Ok(e) => Ok(Json(e)),
-        Err(e) => Err(StatusCode::NOT_FOUND),
+        Err(e) => Err(e),
     }
 }
 
-async fn ticket_with_comments(db: Object, id: i32) -> Result<OutTicket, String> {
-    db.run(move |conn| {
+async fn ticket_with_comments(db: Object, id: i32) -> Result<OutTicket, ErrResponse> {
+    db.interact(move |conn| {
         let t: Result<Ticket, diesel::result::Error> =
             tickets::table.filter(tickets::id.eq(id)).first(conn);
         let t = match t {
             Ok(r) => r,
             Err(..) => {
-                return Err("Could not get ticket".to_string());
+                return Err(ErrResponse::S404("could not get ticket"));
             }
         };
         let cs = <Comment>::belonging_to(&t).load(conn);
         let cs = match cs {
             Ok(r) => r,
             Err(..) => {
-                return Err("Could not get comments for ticket".to_string());
+                return Err(ErrResponse::S404("could not get comments for ticket"));
             }
         };
         Ok(OutTicket {
@@ -275,45 +239,49 @@ async fn ticket_with_comments(db: Object, id: i32) -> Result<OutTicket, String> 
             comments: cs,
         })
     })
-    .await
+    .await?
 }
 
 async fn delete(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    id: i32,
+    State(_): State<AppState>,
+    Path(id): Path<i32>,
     AdminToken: AdminToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-
-    let affected = conn
-        .run(move |conn| {
-            diesel::delete(tickets::table)
-                .filter(tickets::id.eq(id))
+    Db(db): Db,
+) -> Result<(), ErrResponse> {
+    if db
+        .interact(move |conn| {
+            diesel::delete(comments::table)
+                .filter(comments::id.eq(id))
                 .execute(conn)
         })
-        .await?;
-    if let Err(e) = fs::remove_file(photo_filename(id)) {
-        println!("error removing photo with id {}: {}", id, e);
+        .await??
+        == 1
+    {
+        if let Err(e) = fs::remove_file(photo_filename(id)) {
+            println!("error removing photo with id {}: {}", id, e);
+        }
+        Ok(())
+    } else {
+        Err(ErrResponse::S404("object not found in database"))
     }
-
-    Ok((affected == 1).then(|| ()))
 }
 
-async fn destroy(
-    State(pool): State<deadpool_diesel::sqlite::Pool>,
-    AdminToken: AdminToken,
-) -> impl IntoResponse {
-    let conn = pool.get().await.map_err(internal_error)?;
-    conn.run(move |conn| diesel::delete(tickets::table).execute(conn))
-        .await?;
+async fn destroy(AdminToken: AdminToken, Db(db): Db) -> Result<(), ErrResponse> {
+    db.interact(move |conn| diesel::delete(tickets::table).execute(conn))
+        .await??;
     Ok(())
 }
 
-async fn upload(image: Bytes, UserToken: UserToken, id: i32) -> impl IntoResponse {
-    fs::create_dir_all(PHOTOS_PATH)?;
+async fn upload(
+    State(_): State<AppState>,
+    UserToken: UserToken,
+    Path(id): Path<i32>,
+    image: Bytes,
+) -> Result<String, ErrResponse> {
+    fs::create_dir_all(PHOTOS_PATH)
+        .map_err(|_| ErrResponse::S500("could not create images directory"))?;
     let filename = photo_filename(id);
-    let img_bytes = image.open(10.mebibytes()).into_bytes().await?;
-    match spawn_blocking(move || image::load_from_memory(&img_bytes)).await {
+    match spawn_blocking(move || image::load_from_memory(&image)).await {
         Ok(r) => match r {
             Ok(r) => {
                 match r
@@ -327,32 +295,31 @@ async fn upload(image: Bytes, UserToken: UserToken, id: i32) -> impl IntoRespons
                         image::ImageFormat::from_extension("jpg").unwrap(),
                     ) {
                     Ok(_) => Ok(filename),
-                    Err(_) => Err(Debug::from(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Error saving image",
-                    ))),
+                    Err(_) => Err(ErrResponse::S500("error saving image")),
                 }
             }
-            Err(_) => Err(Debug::from(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Error loading image",
-            ))),
+            Err(_) => Err(ErrResponse::S500("error loading image")),
         },
-        Err(_) => Err(Debug::from(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Error loading image",
-        ))),
+        Err(_) => Err(ErrResponse::S500("error loading image")),
     }
 }
 
-async fn retrieve(id: i32, UserToken: UserToken) -> impl IntoResponse {
-    match File::open(photo_filename(id)).await {
-        Ok(f) => Ok(f),
-        Err(..) => Err((StatusCode::NOT_FOUND, "no image available")),
-    }
+async fn retrieve(
+    State(_): State<AppState>,
+    Path(id): Path<i32>,
+    UserToken: UserToken,
+) -> Result<impl IntoResponse, ErrResponse> {
+    let f = match File::open(photo_filename(id)).await {
+        Ok(f) => f,
+        Err(..) => {
+            return Err(ErrResponse::S404("no image available"));
+        }
+    };
+    let stream = ReaderStream::new(f);
+    Ok(StreamBody::new(stream))
 }
 
-async fn delete_photo(id: i32, UserToken: UserToken) -> impl IntoResponse {
+async fn delete_photo(Path(id): Path<i32>, UserToken: UserToken) -> impl IntoResponse {
     match spawn_blocking(move || fs::remove_file(photo_filename(id))).await {
         Ok(..) => Ok("File deleted".to_string()),
         Err(..) => Err((StatusCode::NOT_FOUND, "no image available")),
