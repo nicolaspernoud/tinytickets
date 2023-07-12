@@ -36,8 +36,7 @@ use std::{fmt::Debug, fs};
     AsChangeset,
     PartialEq,
 )]
-#[belongs_to(Asset)]
-#[table_name = "tickets"]
+#[diesel(table_name = tickets, belongs_to(Asset))]
 pub struct Ticket {
     pub id: i32,
     pub asset_id: i32,
@@ -56,7 +55,7 @@ pub struct Ticket {
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
-#[table_name = "tickets"]
+#[diesel(table_name = tickets)]
 pub struct InTicket {
     pub asset_id: i32,
     #[serde(deserialize_with = "string_trim")]
@@ -94,14 +93,14 @@ struct OutTicket {
 
 pub fn build_tickets_router() -> Router<AppState> {
     Router::new()
-        .route("", get(list).post(create).delete(destroy))
-        .route("all", get(list_all))
-        .route(":id", patch(update).delete(delete).get(read))
+        .route("/", get(list).post(create).delete(destroy))
+        .route("/all", get(list_all))
+        .route("/:id", patch(update).delete(delete).get(read))
         .route(
-            "photos/:id",
+            "/photos/:id",
             post(upload).get(retrieve).delete(delete_photo),
         )
-        .route("mail_open", get(mail_open))
+        .route("/mail_open", get(mail_open))
 }
 
 const PHOTOS_PATH: &str = "data/tickets/photos";
@@ -112,7 +111,7 @@ async fn create(
     _: UserToken,
     Db(db): Db,
     Json(ticket): Json<InTicket>,
-) -> Result<StatusCode, ErrResponse> {
+) -> Result<(StatusCode, Json<Ticket>), ErrResponse> {
     let asset_id = ticket.asset_id;
     // Check that the asset that we want to create the ticket for exists...
     match db
@@ -130,11 +129,12 @@ async fn create(
                 })
                 .await??;
 
+            let t2 = t.clone();
             spawn_blocking(move || match template((asset, &t), "new_ticket") {
                 Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
                 Err(e) => println!("Handlebars error : {}", e),
             });
-            Ok(StatusCode::CREATED)
+            Ok((StatusCode::CREATED, Json(t2)))
         }
         Err(..) => Err(ErrResponse::S404(
             "cannot create ticket related to non existing asset",
@@ -169,7 +169,7 @@ async fn update(
             Err(e) => println!("{}", e),
         }
     }
-    Ok(StatusCode::CREATED)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn list(
@@ -243,15 +243,14 @@ async fn ticket_with_comments(db: Object, id: i32) -> Result<OutTicket, ErrRespo
 }
 
 async fn delete(
-    State(_): State<AppState>,
     Path(id): Path<i32>,
     AdminToken: AdminToken,
     Db(db): Db,
 ) -> Result<(), ErrResponse> {
     if db
         .interact(move |conn| {
-            diesel::delete(comments::table)
-                .filter(comments::id.eq(id))
+            diesel::delete(tickets::table)
+                .filter(tickets::id.eq(id))
                 .execute(conn)
         })
         .await??

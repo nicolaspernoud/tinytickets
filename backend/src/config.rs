@@ -38,7 +38,7 @@ impl FromRef<AppState> for Pool<Manager> {
 }
 
 impl AppState {
-    pub async fn new() -> Self {
+    pub async fn new(mailer: Option<Mailer>) -> Self {
         // set up connection pool
         let manager = Manager::new("db/db.sqlite", Runtime::Tokio1);
         let pool = Pool::builder(manager).max_size(8).build().unwrap();
@@ -53,7 +53,7 @@ impl AppState {
         }
         Self {
             config: Config::init(),
-            mailer: Mailer::new(false),
+            mailer: mailer.unwrap_or(Mailer::new(false)),
             pool,
         }
     }

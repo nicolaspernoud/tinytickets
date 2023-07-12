@@ -32,9 +32,9 @@ use super::{
     Insertable,
     AsChangeset,
     PartialEq,
+    Selectable,
 )]
-#[belongs_to(Ticket)]
-#[diesel(table_name = comments)]
+#[diesel(table_name = comments, belongs_to(Ticket))]
 pub struct Comment {
     pub id: i32,
     pub ticket_id: i32,
@@ -67,9 +67,9 @@ impl PartialEq<InComment> for Comment {
 
 pub fn build_comments_router() -> Router<AppState> {
     Router::new()
-        .route("", get(list).post(create).delete(destroy))
-        .route("all", get(list_all))
-        .route(":id", patch(update).delete(delete).get(read))
+        .route("/", get(list).post(create).delete(destroy))
+        .route("/all", get(list_all))
+        .route("/:id", patch(update).delete(delete).get(read))
 }
 
 async fn create(
@@ -78,7 +78,7 @@ async fn create(
     _: UserToken,
     Db(db): Db,
     Json(comment): Json<InComment>,
-) -> Result<StatusCode, ErrResponse> {
+) -> Result<(StatusCode, Json<Comment>), ErrResponse> {
     let ticket_id = comment.ticket_id;
     // Check that the ticket we want to create the comment for exists
     match db
@@ -89,17 +89,22 @@ async fn create(
             // ...create the comment if so
             let c = comment.clone();
             match db
-                .interact(move |conn| diesel::insert_into(comments::table).values(c).execute(conn))
-                .await
+                .interact(move |conn| {
+                    diesel::insert_into(comments::table)
+                        .values(c)
+                        .returning(Comment::as_returning())
+                        .get_result(conn)
+                })
+                .await?
             {
-                Ok(..) => {
+                Ok(c) => {
                     spawn_blocking(move || {
                         match crate::models::ticket::template((&comment, &ticket), "new_comment") {
                             Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
                             Err(e) => println!("Handlebars error : {}", e),
                         }
                     });
-                    Ok(StatusCode::CREATED)
+                    Ok((StatusCode::CREATED, Json(c)))
                 }
 
                 Err(..) => Err(ErrResponse::S404("could not create comment")),
@@ -123,7 +128,7 @@ async fn update(
             .execute(conn)
     })
     .await??;
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn list(

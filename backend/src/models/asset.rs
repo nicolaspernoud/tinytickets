@@ -26,6 +26,7 @@ use super::schema::*;
     Insertable,
     AsChangeset,
     PartialEq,
+    Selectable,
 )]
 #[diesel(table_name = assets)]
 pub struct Asset {
@@ -37,7 +38,7 @@ pub struct Asset {
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
-#[table_name = "assets"]
+#[diesel(table_name = assets)]
 pub struct InAsset {
     #[serde(deserialize_with = "string_trim")]
     pub title: String,
@@ -56,14 +57,16 @@ async fn create(
     _: AdminToken,
     Db(db): Db,
     Json(asset): Json<InAsset>,
-) -> Result<StatusCode, ErrResponse> {
-    db.interact(|conn| {
-        diesel::insert_into(assets::table)
-            .values(asset)
-            .execute(conn)
-    })
-    .await??;
-    Ok(StatusCode::CREATED)
+) -> Result<(StatusCode, Json<Asset>), ErrResponse> {
+    let asset = db
+        .interact(|conn| {
+            diesel::insert_into(assets::table)
+                .values(asset)
+                .returning(Asset::as_returning())
+                .get_result(conn)
+        })
+        .await??;
+    Ok((StatusCode::CREATED, Json(asset)))
 }
 
 async fn update(
@@ -78,7 +81,7 @@ async fn update(
             .execute(conn)
     })
     .await??;
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn list(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
@@ -133,7 +136,7 @@ async fn destroy(AdminToken: AdminToken, Db(db): Db) -> Result<(), ErrResponse> 
 
 pub fn build_assets_router() -> Router<AppState> {
     Router::new()
-        .route("", get(list).post(create).delete(destroy))
-        .route("all", get(list_all))
-        .route(":id", patch(update).delete(delete).get(read))
+        .route("/", get(list).post(create).delete(destroy))
+        .route("/all", get(list_all))
+        .route("/:id", patch(update).delete(delete).get(read))
 }
