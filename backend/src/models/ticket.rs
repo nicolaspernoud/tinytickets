@@ -172,11 +172,7 @@ async fn update(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn list(
-    State(_): State<AppState>,
-    UserToken: UserToken,
-    Db(db): Db,
-) -> Result<impl IntoResponse, ErrResponse> {
+async fn list(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
     let res: Vec<i32> = db
         .interact(|conn| tickets::table.select(tickets::id).load(conn))
         .await??;
@@ -272,7 +268,6 @@ async fn destroy(AdminToken: AdminToken, Db(db): Db) -> Result<(), ErrResponse> 
 }
 
 async fn upload(
-    State(_): State<AppState>,
     UserToken: UserToken,
     Path(id): Path<i32>,
     image: Bytes,
@@ -304,7 +299,6 @@ async fn upload(
 }
 
 async fn retrieve(
-    State(_): State<AppState>,
     Path(id): Path<i32>,
     UserToken: UserToken,
 ) -> Result<impl IntoResponse, ErrResponse> {

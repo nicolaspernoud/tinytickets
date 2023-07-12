@@ -41,15 +41,21 @@ impl AppState {
     pub async fn new(mailer: Option<Mailer>) -> Self {
         // set up connection pool
         let manager = Manager::new("db/db.sqlite", Runtime::Tokio1);
-        let pool = Pool::builder(manager).max_size(8).build().unwrap();
+        let pool = Pool::builder(manager)
+            .max_size(8)
+            .build()
+            .expect("could not build database connection pool");
 
         // run the migrations on server startup
         {
-            let conn: deadpool_diesel::sqlite::Object = pool.get().await.unwrap();
+            let conn: deadpool_diesel::sqlite::Object = pool
+                .get()
+                .await
+                .expect("could not get database connection from pool");
             conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_| ()))
                 .await
-                .unwrap()
-                .unwrap();
+                .expect("could not run database migrations")
+                .expect("could not run database migrations");
         }
         Self {
             config: Config::init(),
@@ -82,8 +88,8 @@ impl Config {
         let ticket_mail_to = env::var("TICKET_MAIL_TO").unwrap_or_default();
         let comment_mail_to = env::var("COMMENT_MAIL_TO").unwrap_or_default();
 
-        println!("Admin token is: {}", admin_token);
-        println!("User token is: {}", user_token);
+        tracing::info!("Admin token is: {}", admin_token);
+        tracing::info!("User token is: {}", user_token);
 
         Config {
             admin_token: format!("$ADMIN${}", admin_token),

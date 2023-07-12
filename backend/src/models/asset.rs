@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::Path,
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch},
@@ -53,7 +53,6 @@ impl PartialEq<InAsset> for Asset {
 }
 
 async fn create(
-    State(_): State<AppState>,
     _: AdminToken,
     Db(db): Db,
     Json(asset): Json<InAsset>,
@@ -108,7 +107,6 @@ async fn read(
 }
 
 async fn delete(
-    State(_): State<AppState>,
     Path(id): Path<i32>,
     AdminToken: AdminToken,
     Db(db): Db,

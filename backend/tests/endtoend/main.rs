@@ -48,7 +48,7 @@ async fn tests_endtoend() {
             .unwrap();
     });
 
-    tracing::debug!("listening on {}", &addr);
+    tracing::debug!("Tiny tickets test server is listening on {}", addr);
 
     let base = &format!("http://localhost:{port}");
 

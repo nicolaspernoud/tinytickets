@@ -131,11 +131,7 @@ async fn update(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn list(
-    State(_): State<AppState>,
-    UserToken: UserToken,
-    Db(db): Db,
-) -> Result<impl IntoResponse, ErrResponse> {
+async fn list(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
     let res: Vec<i32> = db
         .interact(|conn| comments::table.select(comments::id).load(conn))
         .await??;

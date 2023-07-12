@@ -108,7 +108,7 @@ impl InMailer for MockMailer {
                 subject: subject.clone(),
                 body: body.clone(),
             });
-            println!("Test mail to {}, subject: {}, body:{}", to, subject, body);
+            tracing::debug!("Test mail to {}, subject: {}, body:{}", to, subject, body);
         };
     }
 
