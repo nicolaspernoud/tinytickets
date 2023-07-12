@@ -2,7 +2,7 @@ use axum::{routing::get, Router};
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::{
+use tinytickets_backend::{
     config::AppState,
     models::{
         asset::build_assets_router, comment::build_comments_router, ticket::build_tickets_router,

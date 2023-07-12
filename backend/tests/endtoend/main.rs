@@ -9,16 +9,17 @@ use tinytickets_backend::mail::Mailer;
 use chrono::NaiveDateTime;
 use tinytickets_backend::models::asset::Asset;
 use tinytickets_backend::models::asset::InAsset;
+use tinytickets_backend::models::comment::Comment;
+use tinytickets_backend::models::comment::InComment;
+use tinytickets_backend::models::ticket::InTicket;
+use tinytickets_backend::models::ticket::Ticket;
 
 use std::convert::TryFrom;
 
 async fn test_assets(base: &str, client: &reqwest::Client) {
     // Number of assets we're going to create/read/delete.
     const N: usize = 20;
-    let mut admin_header = HeaderMap::new();
-    admin_header.insert("X-TOKEN", "$ADMIN$development_admin_token".parse().unwrap());
-    let mut user_header = HeaderMap::new();
-    user_header.insert("X-TOKEN", "$USER$development_user_token".parse().unwrap());
+    let (admin_header, user_header) = headers();
 
     // Clear everything from the database.
     assert_eq!(
@@ -226,11 +227,18 @@ async fn test_assets(base: &str, client: &reqwest::Client) {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
-fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
+fn headers() -> (HeaderMap, HeaderMap) {
+    let mut admin_header = HeaderMap::new();
+    admin_header.insert("X-TOKEN", "$ADMIN$development_admin_token".parse().unwrap());
+    let mut user_header = HeaderMap::new();
+    user_header.insert("X-TOKEN", "$USER$development_user_token".parse().unwrap());
+    (admin_header, user_header)
+}
+
+async fn test_tickets(base: &str, client: &reqwest::Client) {
     // Number of tickets we're going to create/read/delete.
     const N: usize = 20;
-    let admin_header = Header::new("X-TOKEN", "$ADMIN$development_admin_token");
-    let user_header = Header::new("X-TOKEN", "$USER$development_user_token");
+    let (admin_header, user_header) = headers();
 
     // Clear everything from the database.
     assert_eq!(
@@ -264,7 +272,9 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             .send()
             .await
             .unwrap()
-            .json::<Vec<i64>>(),
+            .json::<Option<Vec<i64>>>()
+            .await
+            .unwrap(),
         Some(vec![])
     );
 
@@ -302,6 +312,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<InAsset>()
+        .await
         .unwrap();
     assert_eq!(response, asset);
 
@@ -313,6 +324,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<Vec<i32>>()
+        .await
         .unwrap()[0];
 
     // Add some random tickets, ensure they're listable and readable.
@@ -353,7 +365,8 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             .send()
             .await
             .unwrap()
-            .json::<Ticket>();
+            .json::<Ticket>()
+            .await;
         assert_eq!(response.unwrap(), ticket);
 
         // Ensure the index shows one more ticket.
@@ -364,6 +377,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             .await
             .unwrap()
             .json::<Vec<i64>>()
+            .await
             .unwrap();
         assert_eq!(list.len(), i);
 
@@ -375,7 +389,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             .send()
             .await
             .unwrap();
-        assert_eq!(response.json::<Ticket>().unwrap(), ticket);
+        assert_eq!(response.json::<Ticket>().await.unwrap(), ticket);
     }
 
     // Patch the tickets
@@ -388,6 +402,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             .await
             .unwrap()
             .json::<Vec<i64>>()
+            .await
             .unwrap();
         let id = list.get(0).expect("have ticket");
 
@@ -427,7 +442,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             .send()
             .await
             .unwrap();
-        assert_eq!(response.json::<Ticket>().unwrap(), ticket);
+        assert_eq!(response.json::<Ticket>().await.unwrap(), ticket);
     }
 
     // Test a photo upload without a user token
@@ -442,7 +457,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     let img_body = fs::read("test_img.jpg").unwrap();
     let response = client
         .post(format!("{}/photos/{}", base, 1))
-        .body(&img_body)
+        .body(img_body.clone())
         .headers(user_header.clone())
         .send()
         .await
@@ -456,7 +471,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         .send()
         .await
         .unwrap();
-    assert_eq!(response.into_bytes().unwrap(), img_body);
+    assert_eq!(response.bytes().await.unwrap(), img_body);
 
     // Now delete all of the tickets.
     for _ in 1..=N {
@@ -468,6 +483,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
             .await
             .unwrap()
             .json::<Vec<i64>>()
+            .await
             .unwrap();
         let id = list.get(0).expect("have ticket");
 
@@ -496,6 +512,7 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<Vec<i64>>()
+        .await
         .unwrap();
     assert!(list.is_empty());
 
@@ -518,11 +535,10 @@ fn test_tickets(base: &str, client: &rocket::local::blocking::Client) {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
-fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
+async fn test_comments(base: &str, client: &reqwest::Client) {
     // Number of comments we're going to create/read/delete.
     const N: usize = 20;
-    let admin_header = Header::new("X-TOKEN", "$ADMIN$development_admin_token");
-    let user_header = Header::new("X-TOKEN", "$USER$development_user_token");
+    let (admin_header, user_header) = headers();
 
     // Clear everything from the database.
     assert_eq!(
@@ -556,7 +572,9 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
             .send()
             .await
             .unwrap()
-            .json::<Vec<i64>>(),
+            .json::<Option<Vec<i64>>>()
+            .await
+            .unwrap(),
         Some(vec![])
     );
 
@@ -590,6 +608,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<InAsset>()
+        .await
         .unwrap();
     assert_eq!(response, asset);
 
@@ -601,6 +620,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<Vec<i32>>()
+        .await
         .unwrap()[0];
 
     // Add a ticket
@@ -622,6 +642,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<InTicket>()
+        .await
         .unwrap();
     assert_eq!(response, ticket);
 
@@ -633,6 +654,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<Vec<i32>>()
+        .await
         .unwrap()[0];
 
     // Add some random comments, ensure they're listable and readable.
@@ -664,8 +686,10 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
             .send()
             .await
             .unwrap()
-            .json::<InComment>();
-        assert_eq!(response.unwrap(), comment);
+            .json::<InComment>()
+            .await
+            .unwrap();
+        assert_eq!(response, comment);
 
         // Ensure the index shows one more comment.
         let list = client
@@ -675,6 +699,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
             .await
             .unwrap()
             .json::<Vec<i64>>()
+            .await
             .unwrap();
         assert_eq!(list.len(), i);
 
@@ -685,8 +710,11 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
             .headers(user_header.clone())
             .send()
             .await
+            .unwrap()
+            .json::<Comment>()
+            .await
             .unwrap();
-        assert_eq!(response.json::<Comment>().unwrap(), comment);
+        assert_eq!(response, comment);
     }
 
     // Patch the comments
@@ -699,6 +727,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
             .await
             .unwrap()
             .json::<Vec<i64>>()
+            .await
             .unwrap();
         let id = list.get(0).expect("have comment");
 
@@ -741,8 +770,11 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
             .headers(user_header.clone())
             .send()
             .await
+            .unwrap()
+            .json::<Comment>()
+            .await
             .unwrap();
-        assert_eq!(response.json::<Comment>().unwrap(), comment);
+        assert_eq!(response, comment);
     }
 
     // Now delete all of the comments.
@@ -755,6 +787,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
             .await
             .unwrap()
             .json::<Vec<i64>>()
+            .await
             .unwrap();
         let id = list.get(0).expect("have comment");
 
@@ -781,6 +814,7 @@ fn test_comments(base: &str, client: &rocket::local::blocking::Client) {
         .await
         .unwrap()
         .json::<Vec<i64>>()
+        .await
         .unwrap();
     assert!(list.is_empty());
 
@@ -809,9 +843,9 @@ async fn test_models() {
     let mailer = Mailer::new(true);
     let client = reqwest::Client::builder().build().unwrap();
 
-    test_assets("/api/assets", &client);
-    test_tickets("/api/tickets", &client);
-    test_comments("/api/comments", &client);
+    test_assets("/api/assets", &client).await;
+    test_tickets("/api/tickets", &client).await;
+    test_comments("/api/comments", &client).await;
     assert!(mailer
         .print_test_mails()
         .contains("Ticket created by patched creator: patched title has been closed"));

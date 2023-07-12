@@ -13,7 +13,7 @@ use std::env;
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("db/migrations");
 
 #[derive(Clone)]
-pub(crate) struct AppState {
+pub struct AppState {
     config: Config,
     mailer: Mailer,
     pool: Pool<Manager>,

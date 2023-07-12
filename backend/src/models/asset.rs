@@ -131,7 +131,7 @@ async fn destroy(AdminToken: AdminToken, Db(db): Db) -> Result<(), ErrResponse> 
     Ok(())
 }
 
-pub(crate) fn build_assets_router() -> Router<AppState> {
+pub fn build_assets_router() -> Router<AppState> {
     Router::new()
         .route("", get(list).post(create).delete(destroy))
         .route("all", get(list_all))

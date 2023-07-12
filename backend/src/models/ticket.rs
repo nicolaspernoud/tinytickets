@@ -92,7 +92,7 @@ struct OutTicket {
     comments: Vec<Comment>,
 }
 
-pub(crate) fn build_tickets_router() -> Router<AppState> {
+pub fn build_tickets_router() -> Router<AppState> {
     Router::new()
         .route("", get(list).post(create).delete(destroy))
         .route("all", get(list_all))
