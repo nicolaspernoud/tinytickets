@@ -217,9 +217,12 @@ class _NewEditTicketState extends State<NewEditTicket> {
                         decoration: new InputDecoration(
                             labelText:
                                 MyLocalizations.of(context)!.tr("creator")),
-                        initialValue: widget.ticket.creator,
+                        initialValue: isExisting
+                            ? widget.ticket.creator
+                            : App().prefs.getString("creator") ?? "",
                         onChanged: (value) {
                           widget.ticket.creator = value;
+                          App().prefs.setString("creator", value);
                         },
                       ),
                     ),

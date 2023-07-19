@@ -14,7 +14,7 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("db/migrations");
 
 #[derive(Clone)]
 pub struct AppState {
-    config: Config,
+    pub config: Config,
     mailer: Mailer,
     pool: Pool<Manager>,
 }
@@ -77,14 +77,22 @@ fn random_string() -> std::string::String {
 pub struct Config {
     admin_token: String,
     user_token: String,
+    pub debug_mode: bool,
     pub ticket_mail_to: String,
     pub comment_mail_to: String,
 }
 
 impl Config {
     pub fn init() -> Config {
-        let admin_token = env::var("ADMIN_TOKEN").unwrap_or_else(|_| random_string());
-        let user_token = env::var("USER_TOKEN").unwrap_or_else(|_| random_string());
+        let admin_token = format!(
+            "$ADMIN${}",
+            env::var("ADMIN_TOKEN").unwrap_or_else(|_| random_string())
+        );
+        let user_token = format!(
+            "$USER${}",
+            env::var("USER_TOKEN").unwrap_or_else(|_| random_string())
+        );
+        let debug_mode = env::var("DEBUG_MODE").unwrap_or_default() == "true";
         let ticket_mail_to = env::var("TICKET_MAIL_TO").unwrap_or_default();
         let comment_mail_to = env::var("COMMENT_MAIL_TO").unwrap_or_default();
 
@@ -92,8 +100,9 @@ impl Config {
         tracing::info!("User token is: {}", user_token);
 
         Config {
-            admin_token: format!("$ADMIN${}", admin_token),
-            user_token: format!("$USER${}", user_token),
+            admin_token,
+            user_token,
+            debug_mode,
             ticket_mail_to,
             comment_mail_to,
         }
@@ -140,11 +149,10 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let config = Config::from_ref(state);
         if let Some(token) = parts.headers.get("X-TOKEN") {
-            if token
+            let token = token
                 .to_str()
-                .map_err(|_| (StatusCode::UNAUTHORIZED, "`X-TOKEN` header is corrupted"))?
-                == config.user_token
-            {
+                .map_err(|_| (StatusCode::UNAUTHORIZED, "`X-TOKEN` header is corrupted"))?;
+            if token == config.user_token || token == config.admin_token {
                 Ok(UserToken)
             } else {
                 Err((StatusCode::FORBIDDEN, "access denied"))

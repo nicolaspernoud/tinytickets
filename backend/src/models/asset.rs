@@ -91,7 +91,9 @@ async fn list(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, Err
 }
 
 async fn list_all(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
-    let all_assets: Vec<Asset> = db.interact(|conn| assets::table.load(conn)).await??;
+    let all_assets: Vec<Asset> = db
+        .interact(|conn| assets::table.order(assets::title).load(conn))
+        .await??;
     Ok(Json(all_assets))
 }
 

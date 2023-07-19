@@ -180,7 +180,9 @@ async fn list(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, Err
 }
 
 async fn list_all(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
-    let all_tickets: Vec<Ticket> = db.interact(|conn| tickets::table.load(conn)).await??;
+    let all_tickets: Vec<Ticket> = db
+        .interact(|conn| tickets::table.order(tickets::time.desc()).load(conn))
+        .await??;
     Ok(Json(all_tickets))
 }
 
@@ -223,7 +225,9 @@ async fn ticket_with_comments(db: Object, id: i32) -> Result<OutTicket, ErrRespo
                 return Err(ErrResponse::S404("could not get ticket"));
             }
         };
-        let cs = <Comment>::belonging_to(&t).load(conn);
+        let cs = <Comment>::belonging_to(&t)
+            .order(comments::time.desc())
+            .load(conn);
         let cs = match cs {
             Ok(r) => r,
             Err(..) => {

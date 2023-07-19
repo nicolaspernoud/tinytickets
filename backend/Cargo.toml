@@ -29,6 +29,7 @@ serde_json = "1"
 serde_trim = "0.4.0"
 tokio = { version = "1.0", features = ["full"] }
 tokio-util = {version = "0.7.8", default-features=false, features=["io"]}
+tower-http = {version = "0.4", default-features=false, features=["cors"]}
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

@@ -445,6 +445,18 @@ async fn test_tickets(base: &str, client: &reqwest::Client) {
         assert_eq!(response.json::<Ticket>().await.unwrap(), ticket);
     }
 
+    // Test that the admin can list tickets as well
+    let list = client
+        .get(api)
+        .headers(admin_header.clone())
+        .send()
+        .await
+        .unwrap()
+        .json::<Vec<i64>>()
+        .await
+        .unwrap();
+    assert_eq!(list.len(), N);
+
     // Patch the tickets
     for _ in 1..=N {
         // Get a valid ID from the index.

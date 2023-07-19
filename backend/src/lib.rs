@@ -5,6 +5,7 @@ pub mod models;
 
 use axum::{routing::get, Router};
 use mail::Mailer;
+use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
@@ -23,7 +24,8 @@ pub async fn build_router(mailer: Option<Mailer>) -> Router {
         .with(tracing_subscriber::fmt::layer())
         .init();
     let state = AppState::new(mailer).await;
-    Router::new()
+    let debug_mode = state.config.debug_mode;
+    let router = Router::new()
         .route(
             "/api/app-title",
             get(|| async {
@@ -33,5 +35,10 @@ pub async fn build_router(mailer: Option<Mailer>) -> Router {
         .nest("/api/assets", build_assets_router())
         .nest("/api/comments", build_comments_router())
         .nest("/api/tickets", build_tickets_router())
-        .with_state(state)
+        .with_state(state);
+    if debug_mode {
+        router.layer(CorsLayer::permissive())
+    } else {
+        router
+    }
 }
