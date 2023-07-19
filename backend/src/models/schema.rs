@@ -1,3 +1,5 @@
+use diesel::prelude::*;
+
 table! {
     assets (id) {
         id -> Integer,

@@ -1,44 +1,27 @@
 use crate::{
-    config::{AdminToken, Config, UserToken},
+    config::{AdminToken, AppState, Config, Db, UserToken},
+    errors::ErrResponse,
     mail::Mailer,
-    models::{
-        asset::Asset,
-        comment::Comment,
-        db::{Db, Result},
-        schema::*,
-    },
+    models::{asset::Asset, comment::Comment, schema::*},
 };
+use axum::{
+    body::{Bytes, StreamBody},
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, patch, post},
+    Json, Router,
+};
+use deadpool_diesel::sqlite::Object;
+use diesel::prelude::*;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 use image::{imageops::FilterType::Lanczos3, GenericImageView};
-use rocket::{
-    data::{Data, ToByteUnit},
-    fairing::AdHoc,
-    response::{
-        status::{Created, NotFound},
-        Debug,
-    },
-    routes,
-    serde::{json::Json, Deserialize, Serialize},
-    tokio::{fs::File, task::spawn_blocking},
-};
-use std::fs;
+use serde::{Deserialize, Serialize};
+use serde_trim::string_trim;
+use tokio::{fs::File, task::spawn_blocking};
+use tokio_util::io::ReaderStream;
 
-use rocket_sync_db_pools::diesel;
-
-use self::diesel::prelude::*;
-
-macro_rules! trim {
-    () => {
-        fn trim(&mut self) -> &Self {
-            self.title = self.title.trim().to_string();
-            self.creator = self.creator.trim().to_string();
-            self.creator_mail = self.creator_mail.trim().to_string();
-            self.creator_phone = self.creator_phone.trim().to_string();
-            self.description = self.description.trim().to_string();
-            self
-        }
-    };
-}
+use std::{fmt::Debug, fs};
 
 #[derive(
     Identifiable,
@@ -46,46 +29,47 @@ macro_rules! trim {
     Debug,
     Clone,
     Deserialize,
+    Selectable,
     Serialize,
     Queryable,
     Insertable,
     AsChangeset,
     PartialEq,
 )]
-#[serde(crate = "rocket::serde")]
-#[belongs_to(Asset)]
-#[table_name = "tickets"]
+#[diesel(table_name = tickets, belongs_to(Asset))]
 pub struct Ticket {
     pub id: i32,
     pub asset_id: i32,
+    #[serde(deserialize_with = "string_trim")]
     pub title: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_mail: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_phone: String,
+    #[serde(deserialize_with = "string_trim")]
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
-}
-
-impl Ticket {
-    trim!();
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
-#[table_name = "tickets"]
+#[diesel(table_name = tickets)]
 pub struct InTicket {
     pub asset_id: i32,
+    #[serde(deserialize_with = "string_trim")]
     pub title: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_mail: String,
+    #[serde(deserialize_with = "string_trim")]
     pub creator_phone: String,
+    #[serde(deserialize_with = "string_trim")]
     pub description: String,
     pub time: chrono::NaiveDateTime,
     pub is_closed: bool,
-}
-
-impl InTicket {
-    trim!();
 }
 
 impl PartialEq<InTicket> for Ticket {
@@ -107,84 +91,72 @@ struct OutTicket {
     comments: Vec<Comment>,
 }
 
-const PHOTOS_PATH: &str = "data/tickets/photos";
-
-#[options("/<_..>")]
-fn options() -> &'static str {
-    ""
+pub fn build_tickets_router() -> Router<AppState> {
+    Router::new()
+        .route("/", get(list).post(create).delete(destroy))
+        .route("/all", get(list_all))
+        .route("/:id", patch(update).delete(delete).get(read))
+        .route(
+            "/photos/:id",
+            post(upload).get(retrieve).delete(delete_photo),
+        )
+        .route("/mail_open", get(mail_open))
 }
 
-#[post("/", data = "<ticket>")]
+const PHOTOS_PATH: &str = "data/tickets/photos";
+
 async fn create(
-    db: Db,
-    mut ticket: Json<InTicket>,
-    _token: UserToken<'_>,
-    mut mailer: Mailer,
-    config: Config,
-) -> Result<Created<Json<Ticket>>, NotFound<String>> {
-    let ticket_value = ticket.trim().clone();
+    State(mut mailer): State<Mailer>,
+    State(config): State<Config>,
+    _: UserToken,
+    Db(db): Db,
+    Json(ticket): Json<InTicket>,
+) -> Result<(StatusCode, Json<Ticket>), ErrResponse> {
     let asset_id = ticket.asset_id;
     // Check that the asset that we want to create the ticket for exists...
     match db
-        .run(move |conn| assets::table.find(asset_id).get_result::<Asset>(conn))
-        .await
+        .interact(move |conn| assets::table.find(asset_id).get_result::<Asset>(conn))
+        .await?
     {
         Ok(asset) => {
             // ...create the ticket if so, and return the created ticket
-            match db
-                .run(move |conn| {
-                    if let Err(_err) = diesel::insert_into(tickets::table)
-                        .values(ticket_value)
-                        .execute(conn)
-                    {
-                        return Err(NotFound("Could not create ticket".to_string()));
-                    };
-
-                    match tickets::table
-                        .order(tickets::id.desc())
-                        .first::<Ticket>(conn)
-                    {
-                        Ok(r) => Ok(r),
-                        Err(..) => Err(NotFound("Could not find ticket id".to_string())),
-                    }
+            let t = db
+                .interact(|conn| {
+                    diesel::insert_into(tickets::table)
+                        .values(ticket)
+                        .returning(Ticket::as_returning())
+                        .get_result(conn)
                 })
-                .await
-            {
-                Ok(t) => {
-                    let t2 = t.clone();
-                    spawn_blocking(move || match template((asset, &t2), "new_ticket") {
-                        Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
-                        Err(e) => println!("Handlebars error : {}", e),
-                    });
-                    Ok(Created::new("/").body(Json(t)))
-                }
-                Err(e) => Err(e),
-            }
+                .await??;
+
+            let t2 = t.clone();
+            spawn_blocking(move || match template((asset, &t), "new_ticket") {
+                Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
+                Err(e) => println!("Handlebars error : {}", e),
+            });
+            Ok((StatusCode::CREATED, Json(t2)))
         }
-        Err(..) => {
-            return Err(NotFound(
-                "Cannot create ticket related to non existing asset.".to_string(),
-            ));
-        }
+        Err(..) => Err(ErrResponse::S404(
+            "cannot create ticket related to non existing asset",
+        )),
     }
 }
 
-#[patch("/<id>", data = "<ticket>")]
 async fn update(
-    db: Db,
-    mut ticket: Json<Ticket>,
-    id: i32,
-    _token: AdminToken<'_>,
-    mut mailer: Mailer,
-) -> Result<Created<Json<Ticket>>> {
-    let t1 = ticket.trim().clone();
-    db.run(move |conn| {
-        diesel::update(tickets::table.filter(tickets::id.eq(id)))
-            .set(t1)
-            .execute(conn)
-    })
-    .await?;
-
+    State(mut mailer): State<Mailer>,
+    Path(id): Path<i32>,
+    AdminToken: AdminToken,
+    Db(db): Db,
+    Json(ticket): Json<Ticket>,
+) -> Result<StatusCode, ErrResponse> {
+    let ticket = db
+        .interact(move |conn| {
+            diesel::update(tickets::table.filter(tickets::id.eq(id)))
+                .set(ticket)
+                .returning(Ticket::as_returning())
+                .get_result(conn)
+        })
+        .await??;
     // If the ticket is closed, send a mail to the creator
     if ticket.is_closed && !ticket.creator_mail.is_empty() {
         match ticket_with_comments(db, ticket.id).await {
@@ -197,41 +169,36 @@ async fn update(
             Err(e) => println!("{}", e),
         }
     }
-
-    Ok(Created::new("/").body(ticket))
+    Ok(StatusCode::NO_CONTENT)
 }
 
-#[get("/")]
-async fn list(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<i32>>> {
-    let ids: Vec<i32> = db
-        .run(|conn| tickets::table.select(tickets::id).load(conn))
-        .await?;
-
-    Ok(Json(ids))
+async fn list(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
+    let res: Vec<i32> = db
+        .interact(|conn| tickets::table.select(tickets::id).load(conn))
+        .await??;
+    Ok(Json(res))
 }
 
-#[get("/all")]
-async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Ticket>>> {
+async fn list_all(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
     let all_tickets: Vec<Ticket> = db
-        .run(|conn| tickets::table.order_by(tickets::time.desc()).load(conn))
-        .await?;
+        .interact(|conn| tickets::table.order(tickets::time.desc()).load(conn))
+        .await??;
     Ok(Json(all_tickets))
 }
 
-#[get("/mail_open")]
 async fn mail_open(
-    db: Db,
-    _token: AdminToken<'_>,
-    mut mailer: Mailer,
-    config: Config,
-) -> Result<Json<Vec<Ticket>>> {
+    Db(db): Db,
+    UserToken: UserToken,
+    State(mut mailer): State<Mailer>,
+    State(config): State<Config>,
+) -> Result<impl IntoResponse, ErrResponse> {
     let open_tickets: Vec<Ticket> = db
-        .run(|conn| {
+        .interact(|conn| {
             tickets::table
                 .filter(tickets::is_closed.eq(false))
                 .load(conn)
         })
-        .await?;
+        .await??;
     if !open_tickets.is_empty() {
         match template(&open_tickets, "open_tickets") {
             Ok(r) => mailer.send_mail_to(r.0, r.1, config.ticket_mail_to),
@@ -241,29 +208,30 @@ async fn mail_open(
     Ok(Json(open_tickets))
 }
 
-#[get("/<id>")]
-async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Result<Json<OutTicket>, NotFound<String>> {
+async fn read(Db(db): Db, Path(id): Path<i32>, UserToken: UserToken) -> impl IntoResponse {
     match ticket_with_comments(db, id).await {
         Ok(e) => Ok(Json(e)),
-        Err(e) => Err(NotFound(e)),
+        Err(e) => Err(e),
     }
 }
 
-async fn ticket_with_comments(db: Db, id: i32) -> Result<OutTicket, String> {
-    db.run(move |conn| {
+async fn ticket_with_comments(db: Object, id: i32) -> Result<OutTicket, ErrResponse> {
+    db.interact(move |conn| {
         let t: Result<Ticket, diesel::result::Error> =
             tickets::table.filter(tickets::id.eq(id)).first(conn);
         let t = match t {
             Ok(r) => r,
             Err(..) => {
-                return Err("Could not get ticket".to_string());
+                return Err(ErrResponse::S404("could not get ticket"));
             }
         };
-        let cs = <Comment>::belonging_to(&t).load(conn);
+        let cs = <Comment>::belonging_to(&t)
+            .order(comments::time.desc())
+            .load(conn);
         let cs = match cs {
             Ok(r) => r,
             Err(..) => {
-                return Err("Could not get comments for ticket".to_string());
+                return Err(ErrResponse::S404("could not get comments for ticket"));
             }
         };
         Ok(OutTicket {
@@ -271,42 +239,47 @@ async fn ticket_with_comments(db: Db, id: i32) -> Result<OutTicket, String> {
             comments: cs,
         })
     })
-    .await
+    .await?
 }
 
-#[delete("/<id>")]
-async fn delete(db: Db, id: i32, _token: AdminToken<'_>) -> Result<Option<()>> {
-    let affected = db
-        .run(move |conn| {
+async fn delete(
+    Path(id): Path<i32>,
+    AdminToken: AdminToken,
+    Db(db): Db,
+) -> Result<(), ErrResponse> {
+    if db
+        .interact(move |conn| {
             diesel::delete(tickets::table)
                 .filter(tickets::id.eq(id))
                 .execute(conn)
         })
-        .await?;
-    if let Err(e) = fs::remove_file(photo_filename(id)) {
-        println!("error removing photo with id {}: {}", id, e);
+        .await??
+        == 1
+    {
+        if let Err(e) = fs::remove_file(photo_filename(id)) {
+            println!("error removing photo with id {}: {}", id, e);
+        }
+        Ok(())
+    } else {
+        Err(ErrResponse::S404("object not found in database"))
     }
-
-    Ok((affected == 1).then(|| ()))
 }
 
-#[delete("/")]
-async fn destroy(db: Db, _token: AdminToken<'_>) -> Result<()> {
-    db.run(move |conn| diesel::delete(tickets::table).execute(conn))
-        .await?;
+async fn destroy(AdminToken: AdminToken, Db(db): Db) -> Result<(), ErrResponse> {
+    db.interact(move |conn| diesel::delete(tickets::table).execute(conn))
+        .await??;
     Ok(())
 }
 
-#[post("/photos/<id>", data = "<image>")]
 async fn upload(
-    image: Data<'_>,
-    _token: UserToken<'_>,
-    id: i32,
-) -> Result<String, Debug<std::io::Error>> {
-    fs::create_dir_all(PHOTOS_PATH)?;
+    UserToken: UserToken,
+    Path(id): Path<i32>,
+    image: Bytes,
+) -> Result<String, ErrResponse> {
+    fs::create_dir_all(PHOTOS_PATH)
+        .map_err(|_| ErrResponse::S500("could not create images directory"))?;
     let filename = photo_filename(id);
-    let img_bytes = image.open(10.mebibytes()).into_bytes().await?;
-    match spawn_blocking(move || image::load_from_memory(&img_bytes)).await {
+    match spawn_blocking(move || image::load_from_memory(&image)).await {
         Ok(r) => match r {
             Ok(r) => {
                 match r
@@ -320,64 +293,38 @@ async fn upload(
                         image::ImageFormat::from_extension("jpg").unwrap(),
                     ) {
                     Ok(_) => Ok(filename),
-                    Err(_) => Err(Debug::from(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Error saving image",
-                    ))),
+                    Err(_) => Err(ErrResponse::S500("error saving image")),
                 }
             }
-            Err(_) => Err(Debug::from(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Error loading image",
-            ))),
+            Err(_) => Err(ErrResponse::S500("error loading image")),
         },
-        Err(_) => Err(Debug::from(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Error loading image",
-        ))),
+        Err(_) => Err(ErrResponse::S500("error loading image")),
     }
 }
 
-#[get("/photos/<id>")]
-async fn retrieve(id: i32, _token: UserToken<'_>) -> Result<File, NotFound<String>> {
-    match File::open(photo_filename(id)).await {
-        Ok(f) => Ok(f),
-        Err(..) => Err(NotFound("no image available".to_string())),
-    }
+async fn retrieve(
+    Path(id): Path<i32>,
+    UserToken: UserToken,
+) -> Result<impl IntoResponse, ErrResponse> {
+    let f = match File::open(photo_filename(id)).await {
+        Ok(f) => f,
+        Err(..) => {
+            return Err(ErrResponse::S404("no image available"));
+        }
+    };
+    let stream = ReaderStream::new(f);
+    Ok(StreamBody::new(stream))
 }
 
-#[delete("/photos/<id>")]
-async fn delete_photo(id: i32, _token: UserToken<'_>) -> Result<String, NotFound<String>> {
+async fn delete_photo(Path(id): Path<i32>, UserToken: UserToken) -> impl IntoResponse {
     match spawn_blocking(move || fs::remove_file(photo_filename(id))).await {
         Ok(..) => Ok("File deleted".to_string()),
-        Err(..) => Err(NotFound("no image available".to_string())),
+        Err(..) => Err((StatusCode::NOT_FOUND, "no image available")),
     }
 }
 
 fn photo_filename(id: i32) -> String {
     format!("{path}/{id}.jpg", path = PHOTOS_PATH, id = id)
-}
-
-pub fn stage() -> AdHoc {
-    AdHoc::on_ignite("Tickets routes", |rocket| async {
-        rocket.mount(
-            "/api/tickets",
-            routes![
-                options,
-                list,
-                list_all,
-                read,
-                create,
-                update,
-                delete,
-                destroy,
-                upload,
-                retrieve,
-                delete_photo,
-                mail_open
-            ],
-        )
-    })
 }
 
 pub fn template<T>(o: T, template: &str) -> Result<(String, String), RenderError>

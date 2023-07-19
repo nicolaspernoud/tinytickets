@@ -1,30 +1,25 @@
-use self::diesel::prelude::*;
-use crate::{
-    config::{AdminToken, Config, UserToken},
-    models::{
-        db::{Db, Result},
-        schema::*,
-        ticket::Ticket,
-    },
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, patch},
+    Json, Router,
 };
-use rocket::{
-    fairing::AdHoc,
-    response::status::{Created, NotFound},
-    routes,
-    serde::{json::Json, Deserialize, Serialize},
-    tokio::task::spawn_blocking,
-};
-use rocket_sync_db_pools::diesel;
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
+use serde_trim::string_trim;
+use tokio::task::spawn_blocking;
 
-macro_rules! trim {
-    () => {
-        fn trim(&mut self) -> &Self {
-            self.creator = self.creator.trim().to_string();
-            self.content = self.content.trim().to_string();
-            self
-        }
-    };
-}
+use crate::{
+    config::{AdminToken, AppState, Config, Db, UserToken},
+    errors::ErrResponse,
+    mail::Mailer,
+};
+
+use super::{
+    schema::{comments, tickets},
+    ticket::Ticket,
+};
 
 #[derive(
     Identifiable,
@@ -37,33 +32,28 @@ macro_rules! trim {
     Insertable,
     AsChangeset,
     PartialEq,
+    Selectable,
 )]
-#[serde(crate = "rocket::serde")]
-#[belongs_to(Ticket)]
-#[table_name = "comments"]
+#[diesel(table_name = comments, belongs_to(Ticket))]
 pub struct Comment {
     pub id: i32,
     pub ticket_id: i32,
     pub time: chrono::NaiveDateTime,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub content: String,
-}
-
-impl Comment {
-    trim!();
 }
 
 #[derive(Clone, Insertable, Deserialize, Serialize, PartialEq, Debug)]
-#[table_name = "comments"]
+#[diesel(table_name = comments)]
 pub struct InComment {
     pub ticket_id: i32,
     pub time: chrono::NaiveDateTime,
+    #[serde(deserialize_with = "string_trim")]
     pub creator: String,
+    #[serde(deserialize_with = "string_trim")]
     pub content: String,
-}
-
-impl InComment {
-    trim!();
 }
 
 impl PartialEq<InComment> for Comment {
@@ -75,122 +65,117 @@ impl PartialEq<InComment> for Comment {
     }
 }
 
-#[options("/<_..>")]
-fn options() -> &'static str {
-    ""
+pub fn build_comments_router() -> Router<AppState> {
+    Router::new()
+        .route("/", get(list).post(create).delete(destroy))
+        .route("/all", get(list_all))
+        .route("/:id", patch(update).delete(delete).get(read))
 }
 
-#[post("/", data = "<comment>")]
 async fn create(
-    db: Db,
-    mut comment: Json<InComment>,
-    _token: UserToken<'_>,
-    config: Config,
-    mut mailer: crate::mail::Mailer,
-) -> Result<Created<Json<InComment>>, NotFound<String>> {
-    let comment_value = comment.trim().clone();
+    State(mut mailer): State<Mailer>,
+    State(config): State<Config>,
+    _: UserToken,
+    Db(db): Db,
+    Json(comment): Json<InComment>,
+) -> Result<(StatusCode, Json<Comment>), ErrResponse> {
     let ticket_id = comment.ticket_id;
-    // Check that the ticket that we want to create the comment for exists...
+    // Check that the ticket we want to create the comment for exists
     match db
-        .run(move |conn| tickets::table.find(ticket_id).get_result::<Ticket>(conn))
-        .await
+        .interact(move |conn| tickets::table.find(ticket_id).get_result::<Ticket>(conn))
+        .await?
     {
         Ok(ticket) => {
             // ...create the comment if so
+            let c = comment.clone();
             match db
-                .run(move |conn| {
+                .interact(move |conn| {
                     diesel::insert_into(comments::table)
-                        .values(comment_value)
-                        .execute(conn)
+                        .values(c)
+                        .returning(Comment::as_returning())
+                        .get_result(conn)
                 })
-                .await
+                .await?
             {
-                Ok(..) => {
-                    let c = (*comment).clone();
+                Ok(c) => {
                     spawn_blocking(move || {
-                        match crate::models::ticket::template((&c, &ticket), "new_comment") {
+                        match crate::models::ticket::template((&comment, &ticket), "new_comment") {
                             Ok(r) => mailer.send_mail_to(r.0, r.1, config.comment_mail_to),
                             Err(e) => println!("Handlebars error : {}", e),
                         }
                     });
-                    Ok(Created::new("/").body(comment))
+                    Ok((StatusCode::CREATED, Json(c)))
                 }
 
-                Err(..) => Err(NotFound("Could not create comment".to_string())),
+                Err(..) => Err(ErrResponse::S404("could not create comment")),
             }
         }
-        Err(..) => Err(NotFound(
-            "Cannot create comment related to non existing ticket.".to_string(),
+        Err(..) => Err(ErrResponse::S404(
+            "cannot create comment related to non existing ticket",
         )),
     }
 }
 
-#[patch("/<id>", data = "<comment>")]
 async fn update(
-    db: Db,
-    mut comment: Json<Comment>,
-    id: i32,
-    _token: AdminToken<'_>,
-) -> Result<Created<Json<Comment>>> {
-    let comment_value = comment.trim().clone();
-    db.run(move |conn| {
+    Path(id): Path<i32>,
+    AdminToken: AdminToken,
+    Db(db): Db,
+    Json(comment): Json<Comment>,
+) -> Result<StatusCode, ErrResponse> {
+    db.interact(move |conn| {
         diesel::update(comments::table.filter(comments::id.eq(id)))
-            .set(comment_value)
+            .set(comment)
             .execute(conn)
     })
-    .await?;
-
-    Ok(Created::new("/").body(comment))
+    .await??;
+    Ok(StatusCode::NO_CONTENT)
 }
 
-#[get("/")]
-async fn list(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<i32>>> {
-    let ids: Vec<i32> = db
-        .run(|conn| comments::table.select(comments::id).load(conn))
-        .await?;
-
-    Ok(Json(ids))
+async fn list(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
+    let res: Vec<i32> = db
+        .interact(|conn| comments::table.select(comments::id).load(conn))
+        .await??;
+    Ok(Json(res))
 }
 
-#[get("/all")]
-async fn list_all(db: Db, _token: UserToken<'_>) -> Result<Json<Vec<Comment>>> {
-    let all_comments: Vec<Comment> = db.run(|conn| comments::table.load(conn)).await?;
+async fn list_all(UserToken: UserToken, Db(db): Db) -> Result<impl IntoResponse, ErrResponse> {
+    let all_comments: Vec<Comment> = db.interact(|conn| comments::table.load(conn)).await??;
     Ok(Json(all_comments))
 }
 
-#[get("/<id>")]
-async fn read(db: Db, id: i32, _token: UserToken<'_>) -> Option<Json<Comment>> {
-    db.run(move |conn| comments::table.filter(comments::id.eq(id)).first(conn))
-        .await
-        .map(Json)
-        .ok()
+async fn read(
+    Path(id): Path<i32>,
+    UserToken: UserToken,
+    Db(db): Db,
+) -> Result<Json<Comment>, ErrResponse> {
+    let comment: Comment = db
+        .interact(move |conn| comments::table.filter(comments::id.eq(id)).first(conn))
+        .await??;
+    Ok(Json(comment))
 }
 
-#[delete("/<id>")]
-async fn delete(db: Db, id: i32, _token: AdminToken<'_>) -> Result<Option<()>> {
-    let affected = db
-        .run(move |conn| {
+async fn delete(
+    Path(id): Path<i32>,
+    AdminToken: AdminToken,
+    Db(db): Db,
+) -> Result<(), ErrResponse> {
+    if db
+        .interact(move |conn| {
             diesel::delete(comments::table)
                 .filter(comments::id.eq(id))
                 .execute(conn)
         })
-        .await?;
-
-    Ok((affected == 1).then(|| ()))
+        .await??
+        == 1
+    {
+        Ok(())
+    } else {
+        Err(ErrResponse::S404("object not found in database"))
+    }
 }
 
-#[delete("/")]
-async fn destroy(db: Db, _token: AdminToken<'_>) -> Result<()> {
-    db.run(move |conn| diesel::delete(comments::table).execute(conn))
-        .await?;
+async fn destroy(AdminToken: AdminToken, Db(db): Db) -> Result<(), ErrResponse> {
+    db.interact(move |conn| diesel::delete(comments::table).execute(conn))
+        .await??;
     Ok(())
-}
-
-pub fn stage() -> AdHoc {
-    AdHoc::on_ignite("Comments routes", |rocket| async {
-        rocket.mount(
-            "/api/comments",
-            routes![options, list, list_all, read, create, update, delete, destroy],
-        )
-    })
 }

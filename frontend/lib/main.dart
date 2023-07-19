@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
       home: MyHomePage(title: 'Tiny Tickets'),
       localizationsDelegates: [
         const MyLocalizationsDelegate(),
-        GlobalMaterialLocalizations.delegate,
+        ...GlobalMaterialLocalizations.delegates,
         GlobalWidgetsLocalizations.delegate,
       ],
       supportedLocales: [

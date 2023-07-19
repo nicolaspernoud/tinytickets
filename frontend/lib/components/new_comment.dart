@@ -50,7 +50,9 @@ class _NewEditCommentState extends State<NewEditComment> {
                   TextFormField(
                     readOnly: widget.comment.id > 0 && App().role != Role.admin,
                     maxLength: 75,
-                    initialValue: widget.comment.creator,
+                    initialValue: widget.comment.id > 0
+                        ? widget.comment.creator
+                        : App().prefs.getString("creator") ?? "",
                     decoration: new InputDecoration(
                         labelText: MyLocalizations.of(context)!.tr("creator")),
                     // The validator receives the text that the user has entered.
@@ -63,6 +65,7 @@ class _NewEditCommentState extends State<NewEditComment> {
                     },
                     onChanged: (value) {
                       widget.comment.creator = value;
+                      App().prefs.setString("creator", value);
                     },
                   ),
                   TextFormField(
