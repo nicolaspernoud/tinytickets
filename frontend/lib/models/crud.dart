@@ -123,7 +123,7 @@ class APICrud<T extends Serialisable> extends Crud<T> {
       },
       body: jsonEncode(val),
     );
-    if (response.statusCode != 201) {
+    if (response.statusCode != 204) {
       throw Exception(response.body.toString());
     }
   }
