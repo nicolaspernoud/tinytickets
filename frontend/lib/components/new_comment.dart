@@ -68,24 +68,32 @@ class _NewEditCommentState extends State<NewEditComment> {
                       App().prefs.setString("creator", value);
                     },
                   ),
-                  TextFormField(
-                    readOnly: widget.comment.id > 0 && App().role != Role.admin,
-                    minLines: 1,
-                    maxLines: 20,
-                    initialValue: widget.comment.content,
-                    decoration: new InputDecoration(
-                        labelText: MyLocalizations.of(context)!.tr("content")),
-                    // The validator receives the text that the user has entered.
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return MyLocalizations.of(context)!
-                            .tr("please_enter_some_text");
-                      }
-                      return null;
-                    },
-                    onChanged: (value) {
-                      widget.comment.content = value;
-                    },
+                  Container(
+                    constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height / 3),
+                    child: SingleChildScrollView(
+                      child: TextFormField(
+                        readOnly:
+                            widget.comment.id > 0 && App().role != Role.admin,
+                        minLines: 1,
+                        maxLines: null,
+                        initialValue: widget.comment.content,
+                        decoration: new InputDecoration(
+                            labelText:
+                                MyLocalizations.of(context)!.tr("content")),
+                        // The validator receives the text that the user has entered.
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return MyLocalizations.of(context)!
+                                .tr("please_enter_some_text");
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          widget.comment.content = value;
+                        },
+                      ),
+                    ),
                   ),
                   if (App().role == Role.admin || widget.comment.id == 0)
                     Padding(

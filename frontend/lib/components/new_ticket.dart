@@ -356,6 +356,21 @@ class _NewEditTicketState extends State<NewEditTicket> {
                             if (snapshot.hasData) {
                               return Column(
                                 children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.add_comment),
+                                      color: Colors.blue,
+                                      onPressed: () {
+                                        _edit(Comment(
+                                            id: 0,
+                                            ticket_id: widget.ticket.id,
+                                            creator: "",
+                                            content: "",
+                                            time: DateTime.now()));
+                                      },
+                                    ),
+                                  ),
                                   ...snapshot.data!.comments
                                       .map((c) => Card(
                                               child: InkWell(
@@ -389,21 +404,6 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                             ),
                                           )))
                                       .toList(),
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: IconButton(
-                                      icon: const Icon(Icons.add_comment),
-                                      color: Colors.blue,
-                                      onPressed: () {
-                                        _edit(Comment(
-                                            id: 0,
-                                            ticket_id: widget.ticket.id,
-                                            creator: "",
-                                            content: "",
-                                            time: DateTime.now()));
-                                      },
-                                    ),
-                                  ),
                                 ],
                               );
                             } else if (snapshot.hasError) {
