@@ -8,7 +8,7 @@ use axum::{
     body::{Bytes, StreamBody},
     extract::{Path, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{Html, IntoResponse},
     routing::{get, patch, post},
     Json, Router,
 };
@@ -101,6 +101,7 @@ pub fn build_tickets_router() -> Router<AppState> {
             post(upload).get(retrieve).delete(delete_photo),
         )
         .route("/mail_open", get(mail_open))
+        .route("/export", get(export))
 }
 
 const PHOTOS_PATH: &str = "data/tickets/photos";
@@ -206,6 +207,40 @@ async fn mail_open(
         };
     };
     Ok(Json(open_tickets))
+}
+
+async fn export(Db(db): Db, UserToken: UserToken) -> Result<impl IntoResponse, ErrResponse> {
+    let tickets_with_comments: Vec<OutTicket> = db
+        .interact(|conn| -> Result<Vec<OutTicket>, ErrResponse> {
+            let all_tickets = tickets::table
+                .select(Ticket::as_select())
+                .order(tickets::time.desc())
+                .load(conn)
+                .map_err(|_| ErrResponse::S404("No tickets found"))?;
+
+            let comments = Comment::belonging_to(&all_tickets)
+                .select(Comment::as_select())
+                .order(comments::time.desc())
+                .load(conn)
+                .map_err(|_| ErrResponse::S404("No comments found"))?;
+
+            let tickets = comments
+                .grouped_by(&all_tickets)
+                .into_iter()
+                .zip(all_tickets)
+                .map(|(cmts, ticket)| OutTicket {
+                    ticket,
+                    comments: cmts,
+                })
+                .collect::<Vec<OutTicket>>();
+            Ok(tickets)
+        })
+        .await??;
+
+    match template(&tickets_with_comments, "tickets_with_comments") {
+        Ok(r) => Ok(Html(r.1)),
+        Err(_) => Err(ErrResponse::S500("could not export data")),
+    }
 }
 
 async fn read(Db(db): Db, Path(id): Path<i32>, UserToken: UserToken) -> impl IntoResponse {
@@ -346,17 +381,23 @@ where
         let param = h.param(0).unwrap();
         let value = param.value().clone();
         let t: Result<Ticket, serde_json::Error> = serde_json::from_value(value);
-        match t {
-            Ok(t) => {
-                let time = t.time.format("%Y-%m-%d").to_string();
-                out.write(&time)?;
-                Ok(())
+        let time = if let Ok(t) = t {
+            Some(t.time.format("%Y-%m-%d").to_string())
+        } else {
+            let t: Result<Comment, serde_json::Error> =
+                serde_json::from_value(param.value().clone());
+            if let Ok(t) = t {
+                Some(t.time.format("%Y-%m-%d").to_string())
+            } else {
+                None
             }
-            Err(..) => {
-                out.write("[NOT A TICKET : CANNOT GET TIME]")?;
-                Ok(())
-            }
+        };
+        if let Some(time) = time {
+            out.write(&time)?;
+        } else {
+            out.write("[NOT A TICKET NOR A COMMENT: CANNOT GET TIME]")?;
         }
+        Ok(())
     }
 
     handlebars.register_helper("formattime", Box::new(formattime));

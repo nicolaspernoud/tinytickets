@@ -365,7 +365,10 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                         _edit(Comment(
                                             id: 0,
                                             ticket_id: widget.ticket.id,
-                                            creator: "",
+                                            creator: App()
+                                                    .prefs
+                                                    .getString("creator") ??
+                                                "",
                                             content: "",
                                             time: DateTime.now()));
                                       },

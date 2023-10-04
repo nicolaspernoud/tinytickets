@@ -15,10 +15,10 @@ name = "tinytickets_backend"
 [dependencies]
 axum = "0.6.18"
 chrono = { version = "0.4", features = ["serde"] }
-deadpool-diesel = { version = "0.4.1", features = ["sqlite"] }
+deadpool-diesel = { version = "0.5.0", features = ["sqlite"] }
 diesel = { version = "2", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
 diesel_migrations = "2"
-handlebars = { version = "4.3", features = ["dir_source"] }
+handlebars = { version = "4.4.0", features = ["dir_source"] }
 http = "0.2"
 image = "0.24"
 lettre = "0.10"

@@ -1,0 +1,50 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tickets export</title>
+    <style>
+      table { font-family: Arial, Helvetica, sans-serif; border-collapse: collapse; width: 100%; white-space: pre-line;} table td, table th { border: 1px solid #ddd; padding: 8px; } table
+      tr:nth-child(even){background-color: #f2f2f2;} table tr:hover {background-color: #ddd;} table th { padding-top: 12px; padding-bottom: 12px; text-align: left; background-color: #FFA000; color:
+      white; }
+    </style>
+  </head>
+  <body>
+    <h1>Tickets export</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Creator</th>
+          <th>Title</th>
+          <th>Description</th>
+          <th>Status</th>
+          <th>Comments</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each this}}
+          <tr>
+            <td>{{formattime this}}</td>
+            <td>{{this.creator}}</td>
+            <td>{{this.title}}</td>
+            <td>{{this.description}}</td>
+            <td>
+              {{#if is_closed}}
+                Closed
+              {{else}}
+                Open
+              {{/if}}
+            </td>
+            <td>
+              {{#each this.comments}}
+                <p>{{formattime this}} - {{this.creator}} - {{this.content}}</p>
+              {{/each}}
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </body>
+</html>
