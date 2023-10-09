@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tinytickets/models/asset.dart';
@@ -6,12 +5,14 @@ import 'package:tinytickets/models/comment.dart';
 import 'package:tinytickets/models/crud.dart';
 import 'package:tinytickets/models/ticket.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../globals.dart';
 import '../i18n.dart';
 import 'new_ticket.dart';
 import 'settings.dart';
+
+import 'package:tinytickets/export/export_android.dart'
+    if (dart.library.js) 'package:tinytickets/export/export_web.dart';
 
 class Tickets extends StatefulWidget {
   final Crud crud;
@@ -298,22 +299,4 @@ class _TicketsState extends State<Tickets> {
 
 String formatTime(DateTime d) {
   return "${d.year.toString()}-${d.month.toString().padLeft(2, "0")}-${d.day.toString().padLeft(2, "0")}";
-}
-
-export() async {
-  String base = (App().prefs.getString("hostname") ?? "") + "/api";
-  String token = App().prefs.getString("token") ?? "";
-
-  final response = await http.get(
-    Uri.parse('$base/tickets/export'),
-    headers: <String, String>{
-      'X-TOKEN': token,
-    },
-  );
-  if (response.statusCode == 200) {
-    launchUrl(Uri.parse(
-        "data:application/octet-stream;base64,${base64Encode(response.bodyBytes)}"));
-  } else {
-    throw Exception('Failed to export tickets');
-  }
 }
