@@ -210,30 +210,41 @@ async fn mail_open(
 }
 
 async fn export(Db(db): Db, UserToken: UserToken) -> Result<impl IntoResponse, ErrResponse> {
-    let tickets_with_comments: Vec<OutTicket> = db
-        .interact(|conn| -> Result<Vec<OutTicket>, ErrResponse> {
-            let all_tickets = tickets::table
-                .select(Ticket::as_select())
+    let tickets_with_comments: Vec<(OutTicket, Asset)> = db
+        .interact(|conn| -> Result<Vec<(OutTicket, Asset)>, ErrResponse> {
+            let tickets_with_assets = tickets::table
+                .inner_join(assets::table)
                 .order(tickets::time.desc())
-                .load(conn)
+                .select((Ticket::as_select(), Asset::as_select()))
+                .load::<(Ticket, Asset)>(conn)
                 .map_err(|_| ErrResponse::S404("No tickets found"))?;
 
-            let comments = Comment::belonging_to(&all_tickets)
+            let tickets = &tickets_with_assets
+                .iter()
+                .map(|e| &e.0)
+                .collect::<Vec<&Ticket>>();
+
+            let comments = Comment::belonging_to(tickets)
                 .select(Comment::as_select())
                 .order(comments::time.desc())
                 .load(conn)
                 .map_err(|_| ErrResponse::S404("No comments found"))?;
 
-            let tickets = comments
-                .grouped_by(&all_tickets)
+            let result = comments
+                .grouped_by(tickets)
                 .into_iter()
-                .zip(all_tickets)
-                .map(|(cmts, ticket)| OutTicket {
-                    ticket,
-                    comments: cmts,
+                .zip(tickets_with_assets)
+                .map(|(cmts, t)| {
+                    (
+                        OutTicket {
+                            ticket: t.0,
+                            comments: cmts,
+                        },
+                        t.1,
+                    )
                 })
-                .collect::<Vec<OutTicket>>();
-            Ok(tickets)
+                .collect::<Vec<(OutTicket, Asset)>>();
+            Ok(result)
         })
         .await??;
 

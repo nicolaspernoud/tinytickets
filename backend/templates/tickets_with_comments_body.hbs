@@ -17,6 +17,7 @@
         <tr>
           <th>Date</th>
           <th>Creator</th>
+          <th>Asset</th>
           <th>Title</th>
           <th>Description</th>
           <th>Status</th>
@@ -26,21 +27,24 @@
       <tbody>
         {{#each this}}
           <tr>
-            <td>{{formattime this}}</td>
-            <td>{{this.creator}}</td>
-            <td>{{this.title}}</td>
-            <td>{{this.description}}</td>
+            <td>{{formattime this.0}}</td>
+            <td>{{this.0.creator}}</td>
+            <td>{{this.1.title}}</td>
+            <td>{{this.0.title}}</td>
+            <td>{{this.0.description}}</td>
             <td>
-              {{#if is_closed}}
+              {{#if this.0.is_closed}}
                 Closed
               {{else}}
                 Open
               {{/if}}
             </td>
             <td>
-              {{#each this.comments}}
-                <p>{{formattime this}} - {{this.creator}} - {{this.content}}</p>
+              <ul>
+              {{#each this.0.comments}}
+                <li>{{formattime this}} - {{this.creator}} - {{this.content}}</li>
               {{/each}}
+              </ul>
             </td>
           </tr>
         {{/each}}
