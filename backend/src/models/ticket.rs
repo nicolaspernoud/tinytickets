@@ -5,7 +5,7 @@ use crate::{
     models::{asset::Asset, comment::Comment, schema::*},
 };
 use axum::{
-    body::{Bytes, StreamBody},
+    body::{Body, Bytes},
     extract::{Path, State},
     http::StatusCode,
     response::{Html, IntoResponse},
@@ -359,7 +359,7 @@ async fn retrieve(
         }
     };
     let stream = ReaderStream::new(f);
-    Ok(StreamBody::new(stream))
+    Ok(Body::from_stream(stream))
 }
 
 async fn delete_photo(Path(id): Path<i32>, UserToken: UserToken) -> impl IntoResponse {

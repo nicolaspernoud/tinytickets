@@ -13,7 +13,7 @@ name = "tinytickets_backend"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6.18"
+axum = "0.7"
 chrono = { version = "0.4", features = ["serde"] }
 deadpool-diesel = { version = "0.5.0", features = ["sqlite"] }
 diesel = { version = "2", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
@@ -21,7 +21,7 @@ diesel_migrations = "2"
 handlebars = { version = "4.4.0", features = ["dir_source"] }
 http = "0.2"
 image = "0.24"
-lettre = "0.10"
+lettre = "0.11"
 libsqlite3-sys = { version = "^0", features = ["bundled"] }
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
@@ -29,7 +29,7 @@ serde_json = "1"
 serde_trim = "1.0.0"
 tokio = { version = "1.0", features = ["full"] }
 tokio-util = {version = "0.7.8", default-features=false, features=["io"]}
-tower-http = {version = "0.4", default-features=false, features=["cors", "fs"]}
+tower-http = {version = "0.5", default-features=false, features=["cors", "fs"]}
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

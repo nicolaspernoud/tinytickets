@@ -33,19 +33,16 @@ async fn tests_endtoend() {
     let mailer = Mailer::new(true);
     let client = reqwest::Client::builder().build().unwrap();
 
-    let listener =
-        std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind to random port");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("failed to bind to random port");
     let addr = (listener).local_addr().unwrap();
     let port = addr.port();
 
     let app = build_router(Some(mailer.clone())).await.into_make_service();
 
     tokio::spawn(async move {
-        axum::Server::from_tcp(listener)
-            .expect("failed to bind to listener")
-            .serve(app)
-            .await
-            .unwrap();
+        axum::serve(listener, app).await.unwrap();
     });
 
     tracing::debug!("Tiny tickets test server is listening on {}", addr);

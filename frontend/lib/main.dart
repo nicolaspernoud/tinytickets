@@ -19,8 +19,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tiny Tickets',
       theme: ThemeData(
-        primarySwatch: Colors.amber,
-      ),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.amber,
+          ),
+          appBarTheme: AppBarTheme(
+            backgroundColor: Colors.amber,
+            elevation: 4,
+            shadowColor: Theme.of(context).shadowColor,
+          )),
       home: MyHomePage(title: 'Tiny Tickets'),
       localizationsDelegates: [
         const MyLocalizationsDelegate(),
