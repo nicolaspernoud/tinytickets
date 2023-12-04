@@ -205,80 +205,75 @@ class _TicketsState extends State<Tickets> {
               ))
             : null,
         bottomNavigationBar: BottomAppBar(
-            child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Wrap(
-            direction: Axis.horizontal,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Wrap(
+            child: Wrap(
+          direction: Axis.horizontal,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: () {
+                      _edit(Ticket(
+                        id: 0,
+                        title: "",
+                        creator: "",
+                        creator_mail: "",
+                        creator_phone: "",
+                        description: "",
+                        asset_id: 1,
+                        is_closed: false,
+                        time: DateTime.now(),
+                      ));
+                    }),
+                Text(MyLocalizations.of(context)!.tr("create_ticket")),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: () {
-                        _edit(Ticket(
-                          id: 0,
-                          title: "",
-                          creator: "",
-                          creator_mail: "",
-                          creator_phone: "",
-                          description: "",
-                          asset_id: 1,
-                          is_closed: false,
-                          time: DateTime.now(),
-                        ));
-                      }),
-                  Text(MyLocalizations.of(context)!.tr("create_ticket")),
+                  const Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Icon(Icons.search)),
+                  SizedBox(
+                    width: 150,
+                    child: TextFormField(
+                        initialValue: _titleFilter,
+                        decoration: InputDecoration(
+                            labelText:
+                                MyLocalizations.of(context)!.tr("search")),
+                        onChanged: (value) {
+                          setState(() {
+                            _titleFilter = value;
+                          });
+                        }),
+                  ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Icon(Icons.search),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8.0),
-                      child: SizedBox(
-                        width: 150,
-                        child: TextFormField(
-                            initialValue: _titleFilter,
-                            decoration: InputDecoration(
-                                labelText:
-                                    MyLocalizations.of(context)!.tr("search")),
-                            onChanged: (value) {
-                              setState(() {
-                                _titleFilter = value;
-                              });
-                            }),
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 12.0),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(MyLocalizations.of(context)!.tr("show_closed")),
+                  Switch(
+                    onChanged: (bool val) {
+                      setState(() => _showClosed = val);
+                    },
+                    value: _showClosed,
+                  ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.only(left: 12.0),
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(MyLocalizations.of(context)!.tr("show_closed")),
-                    Switch(
-                      onChanged: (bool val) {
-                        setState(() => _showClosed = val);
-                      },
-                      value: _showClosed,
-                    ),
-                  ],
-                ),
-              ),
-              if (kIsWeb)
-                IconButton(
-                    icon: const Icon(Icons.download),
-                    onPressed: () => export()),
-            ],
-          ),
+            ),
+            if (kIsWeb)
+              IconButton(
+                  icon: const Icon(Icons.download), onPressed: () => export()),
+          ],
         )));
   }
 
