@@ -14,7 +14,10 @@ use axum::{
 };
 use deadpool_diesel::sqlite::Object;
 use diesel::prelude::*;
-use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
+use handlebars::{
+    Context, DirectorySourceOptions, Handlebars, Helper, HelperResult, Output, RenderContext,
+    RenderError,
+};
 use image::{imageops::FilterType::Lanczos3, GenericImageView};
 use serde::{Deserialize, Serialize};
 use serde_trim::string_trim;
@@ -379,7 +382,7 @@ where
 {
     let mut handlebars = Handlebars::new();
     handlebars
-        .register_templates_directory(".hbs", "templates")
+        .register_templates_directory("templates", DirectorySourceOptions::default())
         .expect("templates directory must exist!");
 
     fn formattime(
