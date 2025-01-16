@@ -22,18 +22,17 @@ environment:
 
 dependencies:
   cupertino_icons: ^1.0.8
-  equatable: ^2.0.5
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
   http: ^1.2.2
   image_picker: ^1.1.2
-  shared_preferences: ^2.3.2
+  shared_preferences: ^2.3.5
   url_launcher: ^6.3.1
 
 dev_dependencies:
-  flutter_launcher_icons: ^0.14.1
+  flutter_launcher_icons: ^0.14.2
   flutter_test:
     sdk: flutter
 

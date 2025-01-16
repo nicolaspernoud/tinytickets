@@ -1,7 +1,6 @@
 import 'package:tinytickets/models/crud.dart';
-import 'package:equatable/equatable.dart';
 
-class Asset extends Serialisable with EquatableMixin {
+class Asset extends Serialisable {
   int id;
   String title;
   String description;
@@ -29,10 +28,17 @@ class Asset extends Serialisable with EquatableMixin {
   }
 
   @override
-  List<Object> get props {
-    return [id, title, description];
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other.runtimeType != runtimeType) return false;
+    return other is Asset &&
+        other.id == id &&
+        other.title == title &&
+        other.description == description;
   }
 
   @override
-  bool get stringify => true;
+  int get hashCode {
+    return Object.hash(id, title, description);
+  }
 }

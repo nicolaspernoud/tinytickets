@@ -148,7 +148,7 @@ class _TicketsState extends State<Tickets> {
                     Widget child;
                     if (snapshot.hasData) {
                       var ts = snapshot.data!.where((t) =>
-                          (!t.is_closed || _showClosed) &&
+                          (!t.isClosed || _showClosed) &&
                           t.title
                               .toLowerCase()
                               .contains(_titleFilter.toLowerCase()));
@@ -171,7 +171,7 @@ class _TicketsState extends State<Tickets> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
                                   ListTile(
-                                      leading: Icon(ts.elementAt(i).is_closed
+                                      leading: Icon(ts.elementAt(i).isClosed
                                           ? Icons.assignment_turned_in
                                           : Icons.assignment),
                                       title: Text(
@@ -220,11 +220,11 @@ class _TicketsState extends State<Tickets> {
                         id: 0,
                         title: "",
                         creator: "",
-                        creator_mail: "",
-                        creator_phone: "",
+                        creatorMail: "",
+                        creatorPhone: "",
                         description: "",
-                        asset_id: 1,
-                        is_closed: false,
+                        assetId: 1,
+                        isClosed: false,
                         time: DateTime.now(),
                       ));
                     }),

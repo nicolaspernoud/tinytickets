@@ -192,8 +192,8 @@ class _NewEditTicketState extends State<NewEditTicket> {
                 SizedBox(height: 10),
                 AssetsDropDown(
                   crud: widget.assetsCrud,
-                  callback: (val) => widget.ticket.asset_id = val,
-                  initialIndex: widget.ticket.asset_id,
+                  callback: (val) => widget.ticket.assetId = val,
+                  initialIndex: widget.ticket.assetId,
                 ),
                 SizedBox(height: 10),
                 TextFormField(
@@ -241,9 +241,9 @@ class _NewEditTicketState extends State<NewEditTicket> {
                           }
                           return null;
                         },
-                        initialValue: widget.ticket.creator_mail,
+                        initialValue: widget.ticket.creatorMail,
                         onChanged: (value) {
-                          widget.ticket.creator_mail = value;
+                          widget.ticket.creatorMail = value;
                         },
                       ),
                     ),
@@ -266,9 +266,9 @@ class _NewEditTicketState extends State<NewEditTicket> {
                           }
                           return null;
                         },
-                        initialValue: widget.ticket.creator_phone,
+                        initialValue: widget.ticket.creatorPhone,
                         onChanged: (value) {
-                          widget.ticket.creator_phone = value;
+                          widget.ticket.creatorPhone = value;
                         },
                       ),
                     ),
@@ -333,9 +333,9 @@ class _NewEditTicketState extends State<NewEditTicket> {
                     children: [
                       Text(MyLocalizations.of(context)!.tr("closed")),
                       Switch(
-                          value: widget.ticket.is_closed,
+                          value: widget.ticket.isClosed,
                           onChanged: (v) => setState(() {
-                                widget.ticket.is_closed = v;
+                                widget.ticket.isClosed = v;
                               })),
                     ],
                   )
@@ -364,7 +364,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                       onPressed: () {
                                         _edit(Comment(
                                             id: 0,
-                                            ticket_id: widget.ticket.id,
+                                            ticketId: widget.ticket.id,
                                             creator: App()
                                                     .prefs
                                                     .getString("creator") ??

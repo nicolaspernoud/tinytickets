@@ -69,7 +69,7 @@ pub fn build_comments_router() -> Router<AppState> {
     Router::new()
         .route("/", get(list).post(create).delete(destroy))
         .route("/all", get(list_all))
-        .route("/:id", patch(update).delete(delete).get(read))
+        .route("/{id}", patch(update).delete(delete).get(read))
 }
 
 async fn create(

@@ -98,9 +98,9 @@ pub fn build_tickets_router() -> Router<AppState> {
     Router::new()
         .route("/", get(list).post(create).delete(destroy))
         .route("/all", get(list_all))
-        .route("/:id", patch(update).delete(delete).get(read))
+        .route("/{id}", patch(update).delete(delete).get(read))
         .route(
-            "/photos/:id",
+            "/photos/{id}",
             post(upload).get(retrieve).delete(delete_photo),
         )
         .route("/mail_open", get(mail_open))

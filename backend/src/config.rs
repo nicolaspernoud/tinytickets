@@ -1,5 +1,4 @@
 use crate::mail::Mailer;
-use axum::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
 use axum::http::StatusCode;
@@ -110,7 +109,6 @@ impl Config {
 }
 pub struct AdminToken;
 
-#[async_trait]
 impl<S> FromRequestParts<S> for AdminToken
 where
     S: Send + Sync,
@@ -138,7 +136,6 @@ where
 
 pub struct UserToken;
 
-#[async_trait]
 impl<S> FromRequestParts<S> for UserToken
 where
     S: Send + Sync,
@@ -165,7 +162,6 @@ where
 
 pub struct Db(pub(crate) deadpool_diesel::sqlite::Object);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for Db
 where
     S: Send + Sync,

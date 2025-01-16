@@ -1,59 +1,58 @@
-import 'package:equatable/equatable.dart';
 import 'package:tinytickets/models/comment.dart';
 
 import 'crud.dart';
 
-class Ticket extends Serialisable with EquatableMixin {
+class Ticket extends Serialisable {
   int id;
-  int asset_id;
+  int assetId;
   DateTime time;
   String title;
   String creator;
-  String creator_mail;
-  String creator_phone;
+  String creatorMail;
+  String creatorPhone;
   String description;
-  bool is_closed;
+  bool isClosed;
   List<Comment> comments = [];
 
   Ticket(
       {required this.id,
-      required this.asset_id,
+      required this.assetId,
       required this.time,
       required this.title,
       required this.creator,
-      required this.creator_mail,
-      required this.creator_phone,
+      required this.creatorMail,
+      required this.creatorPhone,
       required this.description,
-      required this.is_closed,
+      required this.isClosed,
       this.comments = const []});
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'asset_id': asset_id,
+      'asset_id': assetId,
       'time': time.toIso8601String(),
       'title': title,
       'creator': creator,
-      'creator_mail': creator_mail,
-      'creator_phone': creator_phone,
+      'creator_mail': creatorMail,
+      'creator_phone': creatorPhone,
       'description': description,
-      'is_closed': is_closed
+      'is_closed': isClosed
     };
   }
 
   factory Ticket.fromJson(Map<String, dynamic> json) {
     return Ticket(
         id: json['id'],
-        asset_id: json['asset_id'],
+        assetId: json['asset_id'],
         time: json['time'] != null
             ? DateTime.parse(json['time'])
             : DateTime.now(),
         title: json['title'],
         creator: json['creator'],
-        creator_mail: json['creator_mail'],
-        creator_phone: json['creator_phone'],
+        creatorMail: json['creator_mail'],
+        creatorPhone: json['creator_phone'],
         description: json['description'],
-        is_closed: json['is_closed'],
+        isClosed: json['is_closed'],
         comments: json['comments'] == null
             ? []
             : (json['comments'] as List)
@@ -62,20 +61,33 @@ class Ticket extends Serialisable with EquatableMixin {
   }
 
   @override
-  List<Object> get props {
-    return [
-      id,
-      asset_id,
-      time,
-      title,
-      creator,
-      creator_mail,
-      creator_phone,
-      description,
-      is_closed,
-    ];
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other.runtimeType != runtimeType) return false;
+    return other is Ticket &&
+        other.id == id &&
+        other.assetId == assetId &&
+        other.time == time &&
+        other.title == title &&
+        other.creator == creator &&
+        other.creatorMail == creatorMail &&
+        other.creatorPhone == creatorPhone &&
+        other.description == description &&
+        other.isClosed == isClosed;
   }
 
   @override
-  bool get stringify => true;
+  int get hashCode {
+    return Object.hash(
+      id,
+      assetId,
+      time,
+      title,
+      creator,
+      creatorMail,
+      creatorPhone,
+      description,
+      isClosed,
+    );
+  }
 }

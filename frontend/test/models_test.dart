@@ -23,14 +23,14 @@ void main() {
         () async {
       final Ticket t1 = Ticket(
           id: 1,
-          asset_id: 1,
+          assetId: 1,
           time: DateTime.now(),
           title: "a title",
           creator: "a creator",
-          creator_mail: "a mail",
-          creator_phone: "a tel",
+          creatorMail: "a mail",
+          creatorPhone: "a tel",
           description: "a description",
-          is_closed: false);
+          isClosed: false);
       final a1Json = jsonEncode(t1.toJson());
       final t2 = Ticket.fromJson(json.decode(a1Json));
       expect(t1, t2);
@@ -41,7 +41,7 @@ void main() {
         () async {
       final Comment c1 = Comment(
           id: 1,
-          ticket_id: 1,
+          ticketId: 1,
           time: DateTime.now(),
           creator: "a creator",
           content: "a content");
