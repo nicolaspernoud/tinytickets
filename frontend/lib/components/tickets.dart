@@ -205,74 +205,84 @@ class _TicketsState extends State<Tickets> {
               ))
             : null,
         bottomNavigationBar: BottomAppBar(
-            child: Wrap(
-          direction: Axis.horizontal,
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
+            child: Row(
           children: [
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
+            Column(
               children: [
-                IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () {
-                      _edit(Ticket(
-                        id: 0,
-                        title: "",
-                        creator: "",
-                        creatorMail: "",
-                        creatorPhone: "",
-                        description: "",
-                        assetId: 1,
-                        isClosed: false,
-                        time: DateTime.now(),
-                      ));
-                    }),
+                Expanded(
+                  child: IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () {
+                        _edit(Ticket(
+                          id: 0,
+                          title: "",
+                          creator: "",
+                          creatorMail: "",
+                          creatorPhone: "",
+                          description: "",
+                          assetId: 1,
+                          isClosed: false,
+                          time: DateTime.now(),
+                        ));
+                      }),
+                ),
                 Text(MyLocalizations.of(context)!.tr("create_ticket")),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  const Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Icon(Icons.search)),
-                  SizedBox(
-                    width: 150,
-                    child: TextFormField(
-                        initialValue: _titleFilter,
-                        decoration: InputDecoration(
-                            labelText:
-                                MyLocalizations.of(context)!.tr("search")),
-                        onChanged: (value) {
-                          setState(() {
-                            _titleFilter = value;
-                          });
-                        }),
-                  ),
-                ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Row(
+                  children: [
+                    const Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Icon(Icons.search)),
+                    Expanded(
+                      child: TextFormField(
+                          initialValue: _titleFilter,
+                          decoration: InputDecoration(
+                              labelText:
+                                  MyLocalizations.of(context)!.tr("search")),
+                          onChanged: (value) {
+                            setState(() {
+                              _titleFilter = value;
+                            });
+                          }),
+                    ),
+                  ],
+                ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.only(left: 12.0),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
+              child: Column(
                 children: [
-                  Text(MyLocalizations.of(context)!.tr("show_closed")),
-                  Switch(
-                    onChanged: (bool val) {
-                      setState(() => _showClosed = val);
-                    },
-                    value: _showClosed,
+                  Expanded(
+                    child: Switch(
+                      onChanged: (bool val) {
+                        setState(() => _showClosed = val);
+                      },
+                      value: _showClosed,
+                    ),
                   ),
+                  Text(MyLocalizations.of(context)!.tr("show_closed")),
                 ],
               ),
             ),
             if (kIsWeb)
-              IconButton(
-                  icon: const Icon(Icons.download), onPressed: () => export()),
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: IconButton(
+                          icon: const Icon(Icons.download),
+                          onPressed: () => export()),
+                    ),
+                    Text(MyLocalizations.of(context)!.tr("html_export")),
+                  ],
+                ),
+              )
           ],
         )));
   }

@@ -1,9 +1,9 @@
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch},
-    Json, Router,
 };
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};

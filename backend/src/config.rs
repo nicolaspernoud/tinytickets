@@ -1,12 +1,12 @@
 use crate::mail::Mailer;
 use axum::extract::{FromRef, FromRequestParts};
-use axum::http::request::Parts;
 use axum::http::StatusCode;
+use axum::http::request::Parts;
 use deadpool_diesel::sqlite::Manager;
 use deadpool_diesel::{Pool, Runtime};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
+use rand::distr::Alphanumeric;
+use rand::{Rng, rng};
 use std::env;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("db/migrations");
@@ -65,7 +65,7 @@ impl AppState {
 }
 
 fn random_string() -> std::string::String {
-    thread_rng()
+    rng()
         .sample_iter(&Alphanumeric)
         .take(48)
         .map(char::from)

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class App {
@@ -12,6 +13,12 @@ class App {
 
   Future init() async {
     prefs = await SharedPreferences.getInstance();
+    if (kIsWeb) {
+      final token = Uri.base.queryParameters['token'];
+      if (token != null) {
+        App().prefs.setString("token", token);
+      }
+    }
   }
 
   Role get role {

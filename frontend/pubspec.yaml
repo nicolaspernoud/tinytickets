@@ -1,5 +1,5 @@
 name: tinytickets
-description: A new Flutter project.
+description: A very simple helpdesk system allowing to create and manage tickets.
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.
@@ -26,13 +26,13 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  http: ^1.2.2
+  http: ^1.3.0
   image_picker: ^1.1.2
-  shared_preferences: ^2.3.5
+  shared_preferences: ^2.5.2
   url_launcher: ^6.3.1
 
 dev_dependencies:
-  flutter_launcher_icons: ^0.14.2
+  flutter_launcher_icons: ^0.14.3
   flutter_test:
     sdk: flutter
 

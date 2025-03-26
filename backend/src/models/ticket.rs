@@ -5,12 +5,12 @@ use crate::{
     models::{asset::Asset, comment::Comment, schema::*},
 };
 use axum::{
+    Json, Router,
     body::{Body, Bytes},
     extract::{Path, State},
     http::StatusCode,
     response::{Html, IntoResponse},
     routing::{get, patch, post},
-    Json, Router,
 };
 use deadpool_diesel::sqlite::Object;
 use diesel::prelude::*;
@@ -18,7 +18,7 @@ use handlebars::{
     Context, DirectorySourceOptions, Handlebars, Helper, HelperResult, Output, RenderContext,
     RenderError,
 };
-use image::{imageops::FilterType::Lanczos3, GenericImageView};
+use image::{GenericImageView, imageops::FilterType::Lanczos3};
 use serde::{Deserialize, Serialize};
 use serde_trim::string_trim;
 use tokio::{fs::File, task::spawn_blocking};

@@ -4,8 +4,8 @@ pub mod mail;
 pub mod models;
 
 use axum::{
-    routing::{get, get_service},
     Router,
+    routing::{get, get_service},
 };
 use mail::Mailer;
 use tower_http::{cors::CorsLayer, services::ServeDir};

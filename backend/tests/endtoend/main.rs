@@ -26,8 +26,10 @@ async fn tests_endtoend() {
             panic!("error removing db: {}", e);
         }
     }
-    env::set_var("ADMIN_TOKEN", "development_admin_token");
-    env::set_var("USER_TOKEN", "development_user_token");
+    // TODO: Audit that the environment access only happens in single-threaded code.
+    unsafe { env::set_var("ADMIN_TOKEN", "development_admin_token") };
+    // TODO: Audit that the environment access only happens in single-threaded code.
+    unsafe { env::set_var("USER_TOKEN", "development_user_token") };
     // NOTE: If we had more than one test running concurrently that dispatches
     // DB-accessing requests, we'd need transactions or to serialize all tests.
     let mailer = Mailer::new(true);
@@ -57,9 +59,11 @@ async fn tests_endtoend() {
         client.get(base).send().await.unwrap().status(),
         StatusCode::OK
     );
-    assert!(mailer
-        .print_test_mails()
-        .contains("Ticket created by patched creator: patched title has been closed"));
+    assert!(
+        mailer
+            .print_test_mails()
+            .contains("Ticket created by patched creator: patched title has been closed")
+    );
 }
 
 async fn test_title(base: &str, client: &reqwest::Client) {
