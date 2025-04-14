@@ -198,7 +198,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                 SizedBox(height: 10),
                 TextFormField(
                   readOnly: App().role != Role.admin && isExisting,
-                  maxLines: 3,
+                  maxLines: null,
                   decoration: new InputDecoration(
                       labelText:
                           MyLocalizations.of(context)!.tr("description")),
@@ -217,9 +217,7 @@ class _NewEditTicketState extends State<NewEditTicket> {
                         decoration: new InputDecoration(
                             labelText:
                                 MyLocalizations.of(context)!.tr("creator")),
-                        initialValue: isExisting
-                            ? widget.ticket.creator
-                            : App().prefs.getString("creator") ?? "",
+                        initialValue: widget.ticket.creator,
                         onChanged: (value) {
                           widget.ticket.creator = value;
                           App().prefs.setString("creator", value);

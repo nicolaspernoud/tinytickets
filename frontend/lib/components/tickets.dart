@@ -216,7 +216,7 @@ class _TicketsState extends State<Tickets> {
                         _edit(Ticket(
                           id: 0,
                           title: "",
-                          creator: "",
+                          creator: App().prefs.getString("creator") ?? "",
                           creatorMail: "",
                           creatorPhone: "",
                           description: "",
