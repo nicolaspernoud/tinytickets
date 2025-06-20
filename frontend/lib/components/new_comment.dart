@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tinytickets/components/delete_dialog.dart';
 import 'package:tinytickets/models/crud.dart';
 import 'package:tinytickets/models/comment.dart';
 
@@ -31,11 +32,18 @@ class _NewEditCommentState extends State<NewEditComment> {
                   IconButton(
                       icon: const Icon(Icons.delete_forever),
                       onPressed: () async {
-                        await widget.crud.Delete(widget.comment.id);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(MyLocalizations.of(context)!
-                                .tr("comment_deleted"))));
+                        var confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) =>
+                              DeleteDialog(),
+                        );
+                        if (confirmed!) {
+                          await widget.crud.Delete(widget.comment.id);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(MyLocalizations.of(context)!
+                                  .tr("comment_deleted"))));
+                        }
                       })
                 ]
               : null,

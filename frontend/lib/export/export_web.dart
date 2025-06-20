@@ -1,8 +1,16 @@
 import 'package:tinytickets/globals.dart';
 import 'package:http/http.dart' as http;
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 
-export() async {
+// JS interop for URL.createObjectURL and revokeObjectURL
+@JS('URL.createObjectURL')
+external String createObjectURL(web.Blob blob);
+
+@JS('URL.revokeObjectURL')
+external void revokeObjectURL(String url);
+
+Future<void> export() async {
   String base = (App().prefs.getString("hostname") ?? "") + "/api";
   String token = App().prefs.getString("token") ?? "";
 
@@ -12,19 +20,23 @@ export() async {
       'X-TOKEN': token,
     },
   );
+
   if (response.statusCode == 200) {
-    final blob = html.Blob([response.bodyBytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.document.createElement('a') as html.AnchorElement
+    final blob = web.Blob(<web.BlobPart>[response.bodyBytes.toJS].toJS);
+
+    final url = createObjectURL(blob);
+
+    final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
+    anchor
       ..href = url
-      ..style.display = 'none'
-      ..download = "tiny_tickets_export.html";
-    html.document.body!.children.add(anchor);
+      ..download = 'tiny_tickets_export.html'
+      ..style.display = 'none';
 
+    web.document.body!.appendChild(anchor);
     anchor.click();
+    web.document.body!.removeChild(anchor);
 
-    html.document.body!.children.remove(anchor);
-    html.Url.revokeObjectUrl(url);
+    revokeObjectURL(url);
   } else {
     throw Exception('Failed to export tickets');
   }

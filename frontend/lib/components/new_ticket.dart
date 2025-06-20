@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:tinytickets/components/delete_dialog.dart';
 import 'package:tinytickets/components/tickets.dart';
 import 'package:tinytickets/models/asset.dart';
 import 'package:tinytickets/models/comment.dart';
@@ -145,11 +146,17 @@ class _NewEditTicketState extends State<NewEditTicket> {
                   IconButton(
                       icon: const Icon(Icons.delete_forever),
                       onPressed: () async {
-                        await widget.crud.Delete(widget.ticket.id);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(MyLocalizations.of(context)!
-                                .tr("ticket_deleted"))));
+                        var confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => DeleteDialog(),
+                        );
+                        if (confirmed!) {
+                          await widget.crud.Delete(widget.ticket.id);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(MyLocalizations.of(context)!
+                                  .tr("ticket_deleted"))));
+                        }
                       })
                 ]
               : null,
@@ -390,16 +397,26 @@ class _NewEditTicketState extends State<NewEditTicket> {
                                                           " - " +
                                                           c.creator),
                                                   subtitle: Text(c.content),
-                                                  trailing:
-                                                      App().role == Role.admin
-                                                          ? IconButton(
-                                                              icon: Icon(Icons
-                                                                  .delete_forever),
-                                                              onPressed: () {
-                                                                _delete(c);
-                                                              },
-                                                            )
-                                                          : null,
+                                                  trailing: App().role ==
+                                                          Role.admin
+                                                      ? IconButton(
+                                                          icon: Icon(Icons
+                                                              .delete_forever),
+                                                          onPressed: () {
+                                                            showDialog<bool>(
+                                                              context: context,
+                                                              builder: (context) =>
+                                                                  DeleteDialog(),
+                                                            ).then(
+                                                                (confirmed) => {
+                                                                      if (confirmed ??
+                                                                          false)
+                                                                        _delete(
+                                                                            c)
+                                                                    });
+                                                          },
+                                                        )
+                                                      : null,
                                                 ),
                                               ],
                                             ),
