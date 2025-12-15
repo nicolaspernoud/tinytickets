@@ -39,3 +39,18 @@ The rights are defined by tokens, set as environment variables.
 | COMMENT_MAIL_TO      | mail address the mails on new comment will be sent to                                                 | empty (mails will not be send)    |
 | APP_TITLE            | title displayed on top of the app                                                                     | Tiny Tickets                      |
 | DEBUG_MODE           | In test mode, mails will be printed in stdout instead of beeing sent, and permissive CORS are enabled | false                             |
+
+## Upgrade guide
+
+- Regenerate a clean flutter project (see below)
+- Upgrade versions in versions.env
+- Upgrade flutter dependencies in pubspec.yml
+- Upgrade Dockerfile and GitHub actions build.yml
+- Upgrade Rust Cargo.toml dependencies
+
+### Regenerate the frontend
+
+```
+mv frontend frontend_old
+flutter create --template=app --platforms="android,web" --description="A very simple helpdesk system allowing to create and manage tickets." --org="fr.ninico" --project-name="tinytickets" frontend
+```

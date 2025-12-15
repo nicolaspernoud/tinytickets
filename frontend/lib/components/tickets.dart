@@ -49,7 +49,7 @@ class _TicketsState extends State<Tickets> {
     ;
   }
 
-  void openSettings(_) async {
+  void openSettings(Duration _) async {
     await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -67,15 +67,15 @@ class _TicketsState extends State<Tickets> {
       ),
     );
     setState(() {
-      hasRoleOrOpenSettings(_);
+      hasRoleOrOpenSettings();
     });
   }
 
-  void hasRoleOrOpenSettings(_) {
+  void hasRoleOrOpenSettings() {
     if (App().role != Role.unknown) {
       tickets = widget.crud.ReadAll();
     } else {
-      openSettings(_);
+      openSettings(Duration(seconds: 0));
     }
   }
 
@@ -133,7 +133,7 @@ class _TicketsState extends State<Tickets> {
                     return Settings(crud: APICrud<Asset>());
                   }));
                   setState(() {
-                    hasRoleOrOpenSettings(null);
+                    hasRoleOrOpenSettings();
                   });
                 })
           ],
