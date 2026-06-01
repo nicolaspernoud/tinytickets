@@ -6,7 +6,7 @@ use deadpool_diesel::sqlite::Manager;
 use deadpool_diesel::{Pool, Runtime};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use rand::distr::Alphanumeric;
-use rand::{Rng, rng};
+use rand::{RngExt, rng};
 use std::env;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("db/migrations");
